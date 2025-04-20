@@ -6,11 +6,15 @@ import { TradeRecord } from "./components/TradeTable/types";
  * Calculate the risk-reward ratio based on entry, stop loss, and take profit prices
  */
 export const calculateRR = (entryPrice: number, stopLoss: number, takeProfit: number): number => {
-  if (!entryPrice || !stopLoss || !takeProfit) return 0;
+  // Check for undefined, null, NaN or zero values
+  if (!entryPrice || !stopLoss || !takeProfit || isNaN(entryPrice) || isNaN(stopLoss) || isNaN(takeProfit)) {
+    return 0;
+  }
 
   const risk = Math.abs(entryPrice - stopLoss);
   const reward = Math.abs(takeProfit - entryPrice);
 
+  // Avoid division by zero
   return risk === 0 ? 0 : parseFloat((reward / risk).toFixed(2));
 };
 
@@ -52,9 +56,25 @@ export const calculatePositionSize = (
   stopLoss: number,
   leverage: number = 1
 ): number => {
-  if (!riskAmount || !entryPrice || !stopLoss || !leverage) return 0;
+  // Check for undefined, null, NaN or zero values
+  if (
+    !riskAmount ||
+    !entryPrice ||
+    !stopLoss ||
+    !leverage ||
+    isNaN(riskAmount) ||
+    isNaN(entryPrice) ||
+    isNaN(stopLoss) ||
+    isNaN(leverage)
+  ) {
+    return 0;
+  }
 
   const riskPercentage = Math.abs((entryPrice - stopLoss) / entryPrice);
+
+  // Avoid division by zero
+  if (riskPercentage === 0) return 0;
+
   const positionSize = (riskAmount / riskPercentage) * leverage;
 
   return parseFloat(positionSize.toFixed(4));
@@ -64,7 +84,13 @@ export const calculatePositionSize = (
  * Calculate quantity based on position size and entry price
  */
 export const calculateQuantity = (positionSize: number, entryPrice: number): number => {
-  if (!positionSize || !entryPrice) return 0;
+  // Check for undefined, null, NaN or zero values
+  if (!positionSize || !entryPrice || isNaN(positionSize) || isNaN(entryPrice)) {
+    return 0;
+  }
+
+  // Avoid division by zero
+  if (entryPrice === 0) return 0;
 
   return parseFloat((positionSize / entryPrice).toFixed(6));
 };
@@ -166,9 +192,29 @@ export const createTradeRecord = (formData: Partial<TradeRecord>): TradeRecord =
   const id = generateTradeId();
 
   // Calculate risk-reward ratio if not provided
-  const rr = formData.rr || calculateRR(formData.entryPrice || 0, formData.stopLoss || 0, formData.takeProfit || 0);
+  const rr =
+    formData.rr !== undefined
+      ? formData.rr
+      : calculateRR(formData.entryPrice || 0, formData.stopLoss || 0, formData.takeProfit || 0);
 
-  return {
+  // Calculate position size and quantity if not provided
+  let positionSize = formData.positionSize;
+  let quantity = formData.quantity;
+
+  if (!positionSize && formData.riskAmount && formData.entryPrice && formData.stopLoss) {
+    positionSize = calculatePositionSize(
+      formData.riskAmount,
+      formData.entryPrice,
+      formData.stopLoss,
+      formData.leverage || 1
+    );
+  }
+
+  if (!quantity && positionSize && formData.entryPrice) {
+    quantity = calculateQuantity(positionSize, formData.entryPrice);
+  }
+
+  const newTrade: TradeRecord = {
     id,
     symbol: formData.symbol || "",
     timeframe: formData.timeframe || "M30",
@@ -179,7 +225,8 @@ export const createTradeRecord = (formData: Partial<TradeRecord>): TradeRecord =
     stopLoss: formData.stopLoss || 0,
     takeProfit: formData.takeProfit || 0,
     rr,
-    quantity: formData.quantity || 0,
+    quantity: quantity || 0,
+    positionSize: positionSize || 0,
     strategy: formData.strategy || "",
     exitPrice: formData.exitPrice || 0,
     pnl: formData.pnl || 0,
@@ -189,4 +236,6 @@ export const createTradeRecord = (formData: Partial<TradeRecord>): TradeRecord =
     entryTime: formData.entryTime || new Date().toISOString(),
     exitTime: formData.exitTime || "",
   };
+
+  return newTrade;
 };

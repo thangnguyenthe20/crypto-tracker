@@ -1,152 +1,202 @@
 import { useCallback, useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useTradeStore } from "../store";
-import { calculateRR, calculateQuantity, calculatePositionSize } from "../utils";
+import { tradeFormSchema, TradeFormValues } from "../schemas/tradeFormSchema";
+import { calculateRR, calculatePositionSize, calculateQuantity } from "../utils";
+import { DEFAULT_FORM_VALUES } from "../constants";
 
 /**
- * Enhanced custom hook for working with the trade form
- * Provides convenient methods for form handling with improved validation
- * and automatic calculations
+ * Enhanced Trade form hook using react-hook-form and zod validation
  */
 export const useTradeForm = () => {
-  const {
-    formData,
-    isSubmitting,
-    formError,
-    validationErrors,
-    setValidationErrors,
-    setFormData,
-    updateFormField,
-    resetForm,
-    submitForm,
-  } = useTradeStore();
+  const { submitForm, toggleForm, showForm } = useTradeStore();
 
-  // Auto-calculate derived values when form fields change
+  // Initialize form with react-hook-form and zod validation
+  const form = useForm<TradeFormValues>({
+    resolver: zodResolver(tradeFormSchema),
+    defaultValues: {
+      symbol: "",
+      side: DEFAULT_FORM_VALUES.side as "buy" | "sell",
+      timeframe: DEFAULT_FORM_VALUES.timeframe,
+      riskAmount: undefined,
+      entryPrice: undefined,
+      leverage: 1,
+      stopLoss: undefined,
+      takeProfit: undefined,
+      strategy: "",
+      note: "",
+      // Default values for calculated fields
+      rr: 0,
+      positionSize: 0,
+      quantity: 0,
+    },
+    mode: "onChange",
+  });
+
+  const { watch, setValue } = form;
+
+  // Watch for changes to calculate derived values
+  const entryPrice = watch("entryPrice");
+  const stopLoss = watch("stopLoss");
+  const takeProfit = watch("takeProfit");
+  const riskAmount = watch("riskAmount");
+  const leverage = watch("leverage");
+  const side = watch("side");
+
+  // Calculate derived values
   useEffect(() => {
-    // Only run calculations if we have the necessary values
-    if (formData.entryPrice && formData.stopLoss && formData.takeProfit) {
-      // Calculate risk-reward ratio
-      const rr = calculateRR(Number(formData.entryPrice), Number(formData.stopLoss), Number(formData.takeProfit));
-
-      // Don't trigger an update if the value hasn't changed
-      if (formData.rr !== rr) {
-        updateFormField("rr", rr);
-      }
+    // Only calculate RR if all required values are present and valid numbers
+    if (entryPrice && stopLoss && takeProfit && !isNaN(entryPrice) && !isNaN(stopLoss) && !isNaN(takeProfit)) {
+      const rr = calculateRR(entryPrice, stopLoss, takeProfit);
+      form.setValue("rr", rr, { shouldValidate: false });
+    } else {
+      // Set default value when inputs are missing or invalid
+      form.setValue("rr", 0, { shouldValidate: false });
     }
 
-    // Calculate position size and quantity if risk amount is provided
-    if (formData.riskAmount && formData.entryPrice && formData.stopLoss) {
-      const positionSize = calculatePositionSize(
-        Number(formData.riskAmount),
-        Number(formData.entryPrice),
-        Number(formData.stopLoss),
-        Number(formData.leverage || 1)
-      );
+    // Only calculate position size and quantity if all required values are present and valid numbers
+    if (riskAmount && entryPrice && stopLoss && !isNaN(riskAmount) && !isNaN(entryPrice) && !isNaN(stopLoss)) {
+      const positionSize = calculatePositionSize(riskAmount, entryPrice, stopLoss, leverage || 1);
+      const quantity = calculateQuantity(positionSize, entryPrice);
 
-      const quantity = calculateQuantity(positionSize, Number(formData.entryPrice));
-
-      // Only update if changed
-      if (formData.quantity !== quantity) {
-        updateFormField("quantity", quantity);
-      }
+      form.setValue("positionSize", positionSize, { shouldValidate: false });
+      form.setValue("quantity", quantity, { shouldValidate: false });
+    } else {
+      // Set default values when inputs are missing or invalid
+      form.setValue("positionSize", 0, { shouldValidate: false });
+      form.setValue("quantity", 0, { shouldValidate: false });
     }
-  }, [
-    formData.entryPrice,
-    formData.stopLoss,
-    formData.takeProfit,
-    formData.riskAmount,
-    formData.leverage,
-    formData.rr,
-    formData.quantity,
-    updateFormField,
-  ]);
+  }, [entryPrice, stopLoss, takeProfit, riskAmount, leverage, form, side]);
 
-  /**
-   * Enhanced form field change handler with validation
-   */
-  const handleChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-      const { name, value } = e.target;
+  // Handle form submission
+  const onSubmit = useCallback(
+    async (data: TradeFormValues) => {
+      try {
+        console.log("Form data submitted:", data);
 
-      // Parse numeric values
-      if (name.match(/Price|Loss|Profit|Amount|rr|quantity|leverage|pnl|realizedRR|fee/)) {
-        updateFormField(name, value === "" ? "" : parseFloat(value));
-      } else {
-        updateFormField(name, value);
-      }
-    },
-    [updateFormField]
-  );
+        // Validate required fields
+        if (!data.symbol) {
+          form.setError("symbol", { message: "Symbol is required" });
+          return false;
+        }
 
-  /**
-   * Validate form before submission
-   */
-  const validateForm = useCallback((): boolean => {
-    const errors: Record<string, string> = {};
+        if (!data.entryPrice) {
+          form.setError("entryPrice", { message: "Entry price is required" });
+          return false;
+        }
 
-    // Required fields
-    if (!formData.symbol) errors.symbol = "Symbol is required";
-    if (!formData.entryPrice) errors.entryPrice = "Entry price is required";
-    if (!formData.stopLoss) errors.stopLoss = "Stop loss is required";
-    if (!formData.takeProfit) errors.takeProfit = "Take profit is required";
+        if (!data.stopLoss) {
+          form.setError("stopLoss", { message: "Stop loss is required" });
+          return false;
+        }
 
-    // Logical validations
-    if (formData.side === "buy") {
-      if (Number(formData.stopLoss) >= Number(formData.entryPrice)) {
-        errors.stopLoss = "For buy orders, stop loss must be below entry price";
-      }
-      if (Number(formData.takeProfit) <= Number(formData.entryPrice)) {
-        errors.takeProfit = "For buy orders, take profit must be above entry price";
-      }
-    } else if (formData.side === "sell") {
-      if (Number(formData.stopLoss) <= Number(formData.entryPrice)) {
-        errors.stopLoss = "For sell orders, stop loss must be above entry price";
-      }
-      if (Number(formData.takeProfit) >= Number(formData.entryPrice)) {
-        errors.takeProfit = "For sell orders, take profit must be below entry price";
-      }
-    }
+        if (!data.takeProfit) {
+          form.setError("takeProfit", { message: "Take profit is required" });
+          return false;
+        }
 
-    setValidationErrors(errors);
-    return Object.keys(errors).length === 0;
-  }, [formData, setValidationErrors]);
+        // Add calculated fields to the form data with proper validation
+        const formData = {
+          ...data,
+          rr:
+            data.entryPrice &&
+            data.stopLoss &&
+            data.takeProfit &&
+            !isNaN(data.entryPrice) &&
+            !isNaN(data.stopLoss) &&
+            !isNaN(data.takeProfit)
+              ? calculateRR(data.entryPrice, data.stopLoss, data.takeProfit)
+              : 0,
+          // Calculate position size and quantity if risk amount is provided
+          positionSize:
+            data.riskAmount &&
+            data.entryPrice &&
+            data.stopLoss &&
+            !isNaN(data.riskAmount) &&
+            !isNaN(data.entryPrice) &&
+            !isNaN(data.stopLoss)
+              ? calculatePositionSize(data.riskAmount, data.entryPrice, data.stopLoss, data.leverage || 1)
+              : 0,
+          quantity:
+            data.riskAmount &&
+            data.entryPrice &&
+            data.stopLoss &&
+            !isNaN(data.riskAmount) &&
+            !isNaN(data.entryPrice) &&
+            !isNaN(data.stopLoss)
+              ? calculateQuantity(
+                  calculatePositionSize(data.riskAmount, data.entryPrice, data.stopLoss, data.leverage || 1),
+                  data.entryPrice
+                )
+              : 0,
+        };
 
-  /**
-   * Enhanced form submission handler with validation
-   */
-  const handleSubmit = useCallback(
-    (e: React.FormEvent) => {
-      e.preventDefault();
+        console.log("Processed form data:", formData);
 
-      // Clear any previous form errors
-      if (formError) {
-        updateFormField("formError", null);
-      }
+        // Update the store's formData before submitting
+        Object.entries(formData).forEach(([key, value]) => {
+          if (value !== undefined) {
+            // @ts-ignore - We know these fields exist in the store
+            useTradeStore.getState().updateFormField(key, value);
+          }
+        });
 
-      if (validateForm()) {
-        submitForm();
+        // Submit the form data to the store
+        await submitForm();
+
+        // Reset form
+        form.reset();
+
         return true;
+      } catch (error) {
+        console.error("Form submission error:", error);
+        form.setError("root", { message: error instanceof Error ? error.message : "Failed to submit trade" });
+        return false;
       }
-
-      return false;
     },
-    [submitForm, validateForm, formError, updateFormField]
+    [form, submitForm]
   );
 
-  /**
-   * Enhanced reset form handler
-   */
-  const handleResetForm = useCallback(() => {
-    resetForm();
-  }, [resetForm]);
+  // Handle dialog close
+  const handleDialogChange = useCallback(
+    (open: boolean) => {
+      if (!open && showForm) {
+        toggleForm();
+      }
+
+      // Reset form when dialog is closed
+      if (!open) {
+        form.reset();
+        // Also reset the store's form data
+        useTradeStore.getState().resetForm();
+      }
+    },
+    [showForm, toggleForm, form]
+  );
 
   return {
-    formData,
-    isSubmitting,
-    formError,
-    validationErrors,
-    handleChange,
-    handleSubmit,
-    resetForm: handleResetForm,
-    setFormData,
+    form,
+    onSubmit,
+    handleDialogChange,
+    calculatedValues: {
+      rr:
+        entryPrice && stopLoss && takeProfit && !isNaN(entryPrice) && !isNaN(stopLoss) && !isNaN(takeProfit)
+          ? calculateRR(entryPrice, stopLoss, takeProfit)
+          : 0,
+      positionSize:
+        riskAmount && entryPrice && stopLoss && !isNaN(riskAmount) && !isNaN(entryPrice) && !isNaN(stopLoss)
+          ? calculatePositionSize(riskAmount, entryPrice, stopLoss, leverage || 1)
+          : 0,
+      quantity:
+        riskAmount && entryPrice && stopLoss && !isNaN(riskAmount) && !isNaN(entryPrice) && !isNaN(stopLoss)
+          ? calculateQuantity(calculatePositionSize(riskAmount, entryPrice, stopLoss, leverage || 1), entryPrice)
+          : 0,
+    },
   };
 };
+
+/**
+ * Alias for useTradeForm for backward compatibility
+ */
+export const useShadcnTradeForm = useTradeForm;

@@ -274,6 +274,8 @@ export const useTradeStore = create<TradeState>((set, get) => ({
         riskAmount: formData.riskAmount ? Number(formData.riskAmount) : undefined,
         leverage: formData.leverage ? Number(formData.leverage) : undefined,
         quantity: formData.quantity ? Number(formData.quantity) : undefined,
+        rr: formData.rr ? Number(formData.rr) : undefined,
+        positionSize: formData.positionSize ? Number(formData.positionSize) : undefined,
       });
 
       // Add trade

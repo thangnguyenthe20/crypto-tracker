@@ -31,7 +31,6 @@ type ColumnDefinition = {
 
 const TradeTable: React.FC = () => {
   const { trades } = useTrades();
-  console.log(" index.tsx:34 ~ trades:", trades);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [pagination, setPagination] = useState({
     pageIndex: 0,
@@ -121,8 +120,6 @@ const TradeTable: React.FC = () => {
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
-    // Enable this for better performance with large datasets
-    // getFilteredRowModel: getFilteredRowModel(),
   });
 
   // Empty state component

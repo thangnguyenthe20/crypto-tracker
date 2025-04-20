@@ -14,6 +14,7 @@ export interface TradeRecord {
   takeProfit: number;
   rr: number;
   quantity: number;
+  positionSize: number;
   strategy: string;
   exitPrice: number;
   pnl: number;
