@@ -73,8 +73,6 @@ export const useTradeForm = () => {
   const onSubmit = useCallback(
     async (data: TradeFormValues) => {
       try {
-        console.log("Form data submitted:", data);
-
         // Validate required fields
         if (!data.symbol) {
           form.setError("symbol", { message: "Symbol is required" });
@@ -132,8 +130,6 @@ export const useTradeForm = () => {
               : 0,
         };
 
-        console.log("Processed form data:", formData);
-
         // Update the store's formData before submitting
         Object.entries(formData).forEach(([key, value]) => {
           if (value !== undefined) {
@@ -150,7 +146,6 @@ export const useTradeForm = () => {
 
         return true;
       } catch (error) {
-        console.error("Form submission error:", error);
         form.setError("root", { message: error instanceof Error ? error.message : "Failed to submit trade" });
         return false;
       }
