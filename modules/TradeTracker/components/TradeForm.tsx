@@ -10,6 +10,7 @@ import { useTradeForm } from "@/modules/TradeTracker/hooks";
 import { SIDE_OPTIONS, TIMEFRAME_OPTIONS } from "@/modules/TradeTracker/constants";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DateTimePicker } from "@/components/ui/date-time-picker";
 
 /**
  * Enhanced Trade form component using Shadcn UI Form
@@ -42,6 +43,60 @@ export const TradeForm: React.FC = () => {
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6" noValidate>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              {/* Entry Date and Exit Date */}
+              <FormField
+                control={form.control}
+                name="entryTime"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Entry Time</FormLabel>
+                    <FormControl>
+                      <DateTimePicker
+                        modal={true}
+                        date={field.value ? new Date(field.value) : undefined}
+                        setDate={(date) => {
+                          console.log("Entry date selected:", date);
+                          field.onChange(date ? date.toISOString() : "");
+                        }}
+                        placeholder="Select entry date/time"
+                        className="shadow-sm"
+                        onPopoverClose={() => {
+                          // Ensure the field is marked as touched when popover closes
+                          form.trigger("entryTime");
+                        }}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="exitTime"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Exit Time</FormLabel>
+                    <FormControl>
+                      <DateTimePicker
+                        modal={true}
+                        date={field.value ? new Date(field.value) : undefined}
+                        setDate={(date) => {
+                          console.log("Exit date selected:", date);
+                          field.onChange(date ? date.toISOString() : "");
+                        }}
+                        placeholder="Select exit date/time"
+                        className="shadow-sm"
+                        onPopoverClose={() => {
+                          // Ensure the field is marked as touched when popover closes
+                          form.trigger("exitTime");
+                        }}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               {/* Symbol and Risk Amount */}
               <div className="grid grid-cols-2 gap-4">
                 <FormField

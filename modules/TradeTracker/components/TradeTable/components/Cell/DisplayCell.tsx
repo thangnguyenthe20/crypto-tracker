@@ -56,7 +56,7 @@ const DisplayCell = ({ value, columnId, isEditable, onEdit }: DisplayCellProps) 
         return value.toFixed(2);
       case "entryTime":
       case "exitTime":
-        return formatDate(value);
+        return formatDate(value, true);
       default:
         return value;
     }

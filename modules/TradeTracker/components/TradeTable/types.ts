@@ -1,9 +1,7 @@
 import { Table } from "@tanstack/react-table";
-import { Dispatch, SetStateAction } from "react";
-import { SortingState } from "@tanstack/react-table";
 
 export interface TradeRecord {
-  id: string;
+  _id?: string; // MongoDB ID
   symbol: string;
   timeframe: string;
   side: "buy" | "sell";
@@ -37,25 +35,6 @@ export interface CellInputProps {
   onKeyDown?: (e: React.KeyboardEvent) => void;
   columnId: string;
   className?: string;
-}
-
-export interface TradeTableHookProps {
-  trades: TradeRecord[];
-  updateTrade: (trade: TradeRecord) => void;
-  sorting: SortingState;
-  setSorting: Dispatch<SetStateAction<SortingState>>;
-  pagination: {
-    pageIndex: number;
-    pageSize: number;
-  };
-  setPagination: Dispatch<
-    SetStateAction<{
-      pageIndex: number;
-      pageSize: number;
-    }>
-  >;
-  handleEdit: (trade: TradeRecord) => void;
-  handleDelete: (tradeId: string) => void;
 }
 
 export interface TableHeaderProps {

@@ -21,7 +21,7 @@ export const SIDE_OPTIONS = [
 // Table configuration
 export const PAGE_SIZE_OPTIONS = [10, 20, 30, 50];
 
-export const NON_EDITABLE_COLUMNS = ["id", "rr", "realizedRR", "pnl", "entryTime", "exitTime", "actions"];
+export const NON_EDITABLE_COLUMNS = ["_id", "rr", "realizedRR", "pnl", "actions"];
 
 export const NUMBER_FIELDS = [
   "entryPrice",
@@ -43,6 +43,7 @@ export const DEFAULT_FORM_VALUES = {
 };
 
 // API endpoints
+// Using Next.js API routes as proxy to avoid CORS issues
 export const API_ENDPOINTS = {
   TRADES: "/api/trades",
 };

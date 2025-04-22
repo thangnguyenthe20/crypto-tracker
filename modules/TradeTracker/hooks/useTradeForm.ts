@@ -26,6 +26,8 @@ export const useTradeForm = () => {
       takeProfit: undefined,
       strategy: "",
       note: "",
+      entryTime: new Date().toISOString(), // Default to current date/time
+      exitTime: "",
       // Default values for calculated fields
       rr: 0,
       positionSize: 0,
@@ -190,8 +192,3 @@ export const useTradeForm = () => {
     },
   };
 };
-
-/**
- * Alias for useTradeForm for backward compatibility
- */
-export const useShadcnTradeForm = useTradeForm;

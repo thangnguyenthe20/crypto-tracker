@@ -1,5 +1,4 @@
 import { create } from "zustand";
-import { mockTradeRecords } from "@/modules/TradeTracker/mockData";
 import { TradeRecord } from "../components/TradeTable/types";
 import { API_ENDPOINTS, DEFAULT_FORM_VALUES } from "../constants";
 import { createTradeRecord } from "../utils";
@@ -61,11 +60,110 @@ export const useTradeStore = create<TradeState>((set, get) => ({
 
   // Trade data actions
   fetchTrades: async () => {
-    set({ trades: mockTradeRecords });
+    set({ isLoading: true, error: null });
+
+    try {
+      // Use real API
+      const response = await fetch(API_ENDPOINTS.TRADES);
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch trades: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+
+      // Map backend data to frontend format
+      const mappedTrades = data.map((trade: any) => ({
+        _id: trade._id,
+        symbol: trade.symbol,
+        timeframe: trade.timeframe,
+        side: trade.side,
+        riskAmount: trade.riskAmount,
+        leverage: trade.leverage,
+        entryPrice: trade.entryPrice,
+        stopLoss: trade.stopLoss,
+        takeProfit: trade.takeProfit,
+        rr: trade.rr,
+        quantity: trade.quantity,
+        positionSize: trade.positionSize,
+        strategy: trade.strategy || "",
+        exitPrice: trade.exitPrice || 0,
+        pnl: trade.pnl || 0,
+        realizedRR: trade.realizedRR || 0,
+        fee: trade.fee || 0,
+        note: trade.note || "",
+        entryTime: trade.entryTime,
+        exitTime: trade.exitTime || "",
+      }));
+
+      set({ trades: mappedTrades });
+    } catch (error) {
+      console.error("Error fetching trades:", error);
+      set({ error: error instanceof Error ? error.message : "Failed to fetch trades" });
+    } finally {
+      set({ isLoading: false });
+    }
   },
 
   addTrade: async (trade) => {
-    set((state) => ({ trades: [...state.trades, trade] }));
+    set({ isLoading: true, error: null });
+
+    try {
+      // Prepare data for backend
+      const tradeData = {
+        symbol: trade.symbol,
+        timeframe: trade.timeframe,
+        side: trade.side,
+        riskAmount: trade.riskAmount,
+        leverage: trade.leverage,
+        entryPrice: trade.entryPrice,
+        stopLoss: trade.stopLoss,
+        takeProfit: trade.takeProfit,
+        rr: trade.rr,
+        quantity: trade.quantity,
+        positionSize: trade.positionSize,
+        strategy: trade.strategy,
+        exitPrice: trade.exitPrice,
+        pnl: trade.pnl,
+        realizedRR: trade.realizedRR,
+        fee: trade.fee,
+        note: trade.note,
+        entryTime: trade.entryTime,
+        exitTime: trade.exitTime,
+      };
+
+      // Optimistic update
+      set((state) => ({ trades: [...state.trades, trade] }));
+
+      // Real API call
+      const response = await fetch(API_ENDPOINTS.TRADES, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(tradeData),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to add trade: ${response.status} ${response.statusText}`);
+      }
+
+      // Get the created trade with MongoDB _id
+      const createdTrade = await response.json();
+
+      // Replace the temporary trade with the one from the server
+      set((state) => ({
+        trades: state.trades.map((t) =>
+          // Since we don't have a temporary ID anymore, we need to match based on other properties
+          t.symbol === trade.symbol && t.entryPrice === trade.entryPrice && t.entryTime === trade.entryTime && !t._id
+            ? { ...createdTrade }
+            : t
+        ),
+      }));
+    } catch (error) {
+      console.error("Error adding trade:", error);
+      set({ error: error instanceof Error ? error.message : "Failed to add trade" });
+    } finally {
+      set({ isLoading: false });
+    }
   },
 
   bulkAddTrades: async (trades) => {
@@ -74,41 +172,65 @@ export const useTradeStore = create<TradeState>((set, get) => ({
     set({ isLoading: true, error: null });
 
     try {
+      // Prepare data for backend
+      const tradesData = trades.map((trade) => ({
+        symbol: trade.symbol,
+        timeframe: trade.timeframe,
+        side: trade.side,
+        riskAmount: trade.riskAmount,
+        leverage: trade.leverage,
+        entryPrice: trade.entryPrice,
+        stopLoss: trade.stopLoss,
+        takeProfit: trade.takeProfit,
+        rr: trade.rr,
+        quantity: trade.quantity,
+        positionSize: trade.positionSize,
+        strategy: trade.strategy,
+        exitPrice: trade.exitPrice,
+        pnl: trade.pnl,
+        realizedRR: trade.realizedRR,
+        fee: trade.fee,
+        note: trade.note,
+        entryTime: trade.entryTime,
+        exitTime: trade.exitTime,
+      }));
+
       // Optimistic update
       set((state) => ({
         trades: [...state.trades, ...trades],
       }));
 
-      // Skip API call in development with mock data
-      if (process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_USE_MOCK_DATA === "true") {
-        await new Promise((resolve) => setTimeout(resolve, 300));
-        return;
-      }
-
       // Real API call - if your API supports bulk operations
       const response = await fetch(`${API_ENDPOINTS.TRADES}/bulk-create`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ trades }),
+        body: JSON.stringify({ trades: tradesData }),
       });
 
       if (!response.ok) {
         throw new Error(`Failed to bulk add trades: ${response.status} ${response.statusText}`);
       }
 
-      // Update with server response if needed
+      // Simply replace the trades with the ones from the server
       const savedTrades = await response.json();
       if (Array.isArray(savedTrades)) {
-        // Create a map of id -> savedTrade for efficient lookup
-        const savedTradesMap = savedTrades.reduce((map, trade) => {
-          map[trade.id] = trade;
-          return map;
-        }, {});
+        // Get the current trades that are not part of this bulk operation
+        const existingTrades = get().trades.filter(
+          (t) =>
+            // Keep trades that have _id and are not in the new batch
+            t._id &&
+            !trades.some(
+              (newTrade) =>
+                newTrade.symbol === t.symbol &&
+                newTrade.entryPrice === t.entryPrice &&
+                newTrade.entryTime === t.entryTime
+            )
+        );
 
-        // Update trades with server data
-        set((state) => ({
-          trades: state.trades.map((t) => (savedTradesMap[t.id] ? savedTradesMap[t.id] : t)),
-        }));
+        // Add the new trades from the server
+        set({
+          trades: [...existingTrades, ...savedTrades],
+        });
       }
     } catch (error) {
       console.error("Error bulk adding trades:", error);
@@ -120,30 +242,68 @@ export const useTradeStore = create<TradeState>((set, get) => ({
   },
 
   updateTrade: async (trade) => {
+    set({ isLoading: true, error: null });
+
+    // Prepare data for backend
+    const tradeData = {
+      symbol: trade.symbol,
+      timeframe: trade.timeframe,
+      side: trade.side,
+      riskAmount: trade.riskAmount,
+      leverage: trade.leverage,
+      entryPrice: trade.entryPrice,
+      stopLoss: trade.stopLoss,
+      takeProfit: trade.takeProfit,
+      rr: trade.rr,
+      quantity: trade.quantity,
+      positionSize: trade.positionSize,
+      strategy: trade.strategy,
+      exitPrice: trade.exitPrice,
+      pnl: trade.pnl,
+      realizedRR: trade.realizedRR,
+      fee: trade.fee,
+      note: trade.note,
+      entryTime: trade.entryTime,
+      exitTime: trade.exitTime,
+    };
+
     // Optimistic update
     set((state) => ({
-      trades: state.trades.map((t) => (t.id === trade.id ? trade : t)),
+      trades: state.trades.map((t) => (t._id === trade._id ? trade : t)),
     }));
 
-    // Skip API call in development with mock data
-    if (process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_USE_MOCK_DATA === "true") {
-      return;
-    }
-
     try {
-      const response = await fetch(`${API_ENDPOINTS.TRADES}/${trade.id}`, {
-        method: "PUT",
+      const response = await fetch(`${API_ENDPOINTS.TRADES}/${trade._id}`, {
+        method: "PATCH", // NestJS uses PATCH for updates
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(trade),
+        body: JSON.stringify(tradeData),
       });
 
       if (!response.ok) {
         throw new Error(`Failed to update trade: ${response.status} ${response.statusText}`);
       }
+
+      // Get the updated trade
+      const updatedTrade = await response.json();
+
+      // Update with server data
+      set((state) => ({
+        trades: state.trades.map((t) =>
+          t._id === trade._id
+            ? {
+                ...t,
+                ...updatedTrade,
+                _id: updatedTrade._id, // Ensure ID mapping
+              }
+            : t
+        ),
+      }));
     } catch (error) {
       console.error("Error updating trade:", error);
       set({ error: error instanceof Error ? error.message : "Failed to update trade" });
       // We could revert the optimistic update here if needed
+    } finally {
+      set({ isLoading: false });
     }
   },
 
@@ -153,14 +313,8 @@ export const useTradeStore = create<TradeState>((set, get) => ({
     try {
       // Optimistic update
       set((state) => ({
-        trades: state.trades.filter((t) => t.id !== id),
+        trades: state.trades.filter((t) => t._id !== id),
       }));
-
-      // Skip API call in development with mock data
-      if (process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_USE_MOCK_DATA === "true") {
-        await new Promise((resolve) => setTimeout(resolve, 300));
-        return;
-      }
 
       // Real API call
       const response = await fetch(`${API_ENDPOINTS.TRADES}/${id}`, {
@@ -188,14 +342,8 @@ export const useTradeStore = create<TradeState>((set, get) => ({
     try {
       // Optimistic update
       set((state) => ({
-        trades: state.trades.filter((t) => !ids.includes(t.id)),
+        trades: state.trades.filter((t) => !ids.includes(t._id)),
       }));
-
-      // Skip API call in development with mock data
-      if (process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_USE_MOCK_DATA === "true") {
-        await new Promise((resolve) => setTimeout(resolve, 300));
-        return;
-      }
 
       // Real API call
       const response = await fetch(`${API_ENDPOINTS.TRADES}/bulk-delete`, {

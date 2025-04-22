@@ -25,6 +25,8 @@ export const tradeFormSchema = z
       .min(0, { message: "Take profit is required" }),
     strategy: z.string().optional(),
     note: z.string().optional(),
+    entryTime: z.string().optional(),
+    exitTime: z.string().optional(),
     // Calculated fields
     rr: z.number().optional(),
     positionSize: z.number().optional(),

@@ -8,7 +8,7 @@ import {
   useReactTable,
   SortingState,
   getPaginationRowModel,
-  ColumnDef,
+  Column,
 } from "@tanstack/react-table";
 import { TableHeader } from "./components/TableHeader";
 import { TableBody } from "./components/TableBody";
@@ -55,44 +55,47 @@ const TradeTable: React.FC = () => {
       { accessorKey: "realizedRR", header: "Realized RR", size: 80 },
       { accessorKey: "strategy", header: "Strategy", size: 200 },
       { accessorKey: "note", header: "Note", size: 200 },
-      { accessorKey: "entryTime", header: "Entry Date", size: 200 },
-      { accessorKey: "exitTime", header: "Exit Date", size: 200 },
+      { accessorKey: "entryTime", header: "Entry Date", size: 150 },
+      { accessorKey: "exitTime", header: "Exit Date", size: 150 },
     ],
     []
   );
 
   // Create a reusable header component
-  const HeaderComponent = useCallback(({ column, header, size }: { column: any; header: string; size: number }) => {
-    const isSorted = column.getIsSorted();
-    const isSortedAsc = isSorted === "asc";
-    const isSortedDesc = isSorted === "desc";
+  const HeaderComponent = useCallback(
+    ({ column, header, size }: { column: Column<TradeRecord, unknown>; header: string; size: number }) => {
+      const isSorted = column.getIsSorted();
+      const isSortedAsc = isSorted === "asc";
+      const isSortedDesc = isSorted === "desc";
 
-    return (
-      <div style={{ width: size }}>
-        <Button
-          variant="ghost"
-          className="!p-0 w-full flex text-left justify-start"
-          onClick={() => {
-            if (isSortedDesc) {
-              column.clearSorting();
-            } else {
-              column.toggleSorting(isSortedAsc);
-            }
-          }}
-        >
-          {header}
-          {isSorted && (
-            <span className="ml-1">
-              {isSortedAsc ? <ArrowDownIcon className="w-4 h-4" /> : <ArrowUpIcon className="w-4 h-4" />}
-            </span>
-          )}
-        </Button>
-      </div>
-    );
-  }, []);
+      return (
+        <div style={{ width: size }}>
+          <Button
+            variant="ghost"
+            className="!p-0 w-full flex text-left justify-start"
+            onClick={() => {
+              if (isSortedDesc) {
+                column.clearSorting();
+              } else {
+                column.toggleSorting(isSortedAsc);
+              }
+            }}
+          >
+            {header}
+            {isSorted && (
+              <span className="ml-1">
+                {isSortedAsc ? <ArrowDownIcon className="w-4 h-4" /> : <ArrowUpIcon className="w-4 h-4" />}
+              </span>
+            )}
+          </Button>
+        </div>
+      );
+    },
+    []
+  );
 
   // Generate columns with the EditableCell component
-  const columns = useMemo<ColumnDef<TradeRecord>[]>(() => {
+  const columns = useMemo(() => {
     const columnHelper = createColumnHelper<TradeRecord>();
 
     return columnDefinitions.map((col) =>
