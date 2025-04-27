@@ -179,7 +179,15 @@ const EditableCell = ({ getValue, row, column }: CellContext<TradeRecord, unknow
 
   // If not editing and not a special column, show display cell
   if (!isEditing && !isAlwaysEditing) {
-    return <DisplayCell value={initialValue} columnId={columnId} isEditable={isEditable} onEdit={onCellClick} />;
+    return (
+      <DisplayCell
+        value={initialValue}
+        columnId={columnId}
+        isEditable={isEditable}
+        onEdit={onCellClick}
+        row={row.original}
+      />
+    );
   }
 
   // Otherwise render the appropriate input

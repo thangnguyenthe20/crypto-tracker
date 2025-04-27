@@ -53,15 +53,12 @@ export const DateTimeInput: React.FC<CellInputProps> = ({ value, onChange, onBlu
 
   // Handle date change
   const handleDateChange = (newDate: Date | undefined) => {
-    console.log("Date changed to:", newDate);
     setDate(newDate);
   };
 
   // Handle popover close - this is when we'll update the database
   const handlePopoverClose = () => {
-    console.log("Popover closed, hasChanged:", hasChanged, "date:", date);
     if (hasChanged && onBlur) {
-      console.log("Calling onBlur to update database");
       // Ensure we're using the latest date value
       if (date) {
         onChange(date.toISOString());
@@ -71,11 +68,8 @@ export const DateTimeInput: React.FC<CellInputProps> = ({ value, onChange, onBlu
         onBlur();
         setHasChanged(false);
       }, 50);
-      console.log("handlePopoverClose");
     }
   };
-
-  console.log(onBlur);
 
   return (
     <div className="w-full">

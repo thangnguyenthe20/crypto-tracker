@@ -66,4 +66,5 @@ export interface DisplayCellProps {
   columnId: string;
   isEditable: boolean;
   onEdit: () => void;
+  row?: TradeRecord;
 }

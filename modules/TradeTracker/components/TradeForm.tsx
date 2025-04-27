@@ -229,7 +229,12 @@ export const TradeForm: React.FC = () => {
                     <FormItem>
                       <FormLabel>Strategy</FormLabel>
                       <FormControl>
-                        <Textarea placeholder="Breakout" rows={3} {...field} />
+                        <Textarea
+                          placeholder="Breakout, Support/Resistance, Moving Average Crossover..."
+                          rows={3}
+                          className="resize-y min-h-[80px]"
+                          {...field}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -246,7 +251,12 @@ export const TradeForm: React.FC = () => {
                     <FormItem>
                       <FormLabel>Notes</FormLabel>
                       <FormControl>
-                        <Textarea placeholder="Add any trade notes here..." rows={3} {...field} />
+                        <Textarea
+                          placeholder="Add details about market conditions, your thought process, what went well or could be improved..."
+                          rows={4}
+                          className="resize-y min-h-[100px]"
+                          {...field}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
