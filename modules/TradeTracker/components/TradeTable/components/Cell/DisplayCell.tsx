@@ -26,8 +26,6 @@ const DisplayCell = ({ value, columnId, isEditable, onEdit }: DisplayCellProps) 
         );
       case "riskAmount":
         return `$${value}`;
-      case "leverage":
-        return `${value}x`;
       case "entryPrice":
       case "stopLoss":
       case "takeProfit":

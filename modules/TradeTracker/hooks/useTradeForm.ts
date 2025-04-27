@@ -21,7 +21,6 @@ export const useTradeForm = () => {
       timeframe: DEFAULT_FORM_VALUES.timeframe,
       riskAmount: undefined,
       entryPrice: undefined,
-      leverage: 1,
       stopLoss: undefined,
       takeProfit: undefined,
       strategy: "",
@@ -36,15 +35,15 @@ export const useTradeForm = () => {
     mode: "onChange",
   });
 
-  const { watch, setValue } = form;
+  const { watch } = form;
 
   // Watch for changes to calculate derived values
   const entryPrice = watch("entryPrice");
   const stopLoss = watch("stopLoss");
   const takeProfit = watch("takeProfit");
   const riskAmount = watch("riskAmount");
-  const leverage = watch("leverage");
   const side = watch("side");
+  // const leverage = watch("leverage");
 
   // Calculate derived values
   useEffect(() => {
@@ -59,7 +58,7 @@ export const useTradeForm = () => {
 
     // Only calculate position size and quantity if all required values are present and valid numbers
     if (riskAmount && entryPrice && stopLoss && !isNaN(riskAmount) && !isNaN(entryPrice) && !isNaN(stopLoss)) {
-      const positionSize = calculatePositionSize(riskAmount, entryPrice, stopLoss, leverage || 1);
+      const positionSize = calculatePositionSize(riskAmount, entryPrice, stopLoss);
       const quantity = calculateQuantity(positionSize, entryPrice);
 
       form.setValue("positionSize", positionSize, { shouldValidate: false });
@@ -69,7 +68,7 @@ export const useTradeForm = () => {
       form.setValue("positionSize", 0, { shouldValidate: false });
       form.setValue("quantity", 0, { shouldValidate: false });
     }
-  }, [entryPrice, stopLoss, takeProfit, riskAmount, leverage, form, side]);
+  }, [entryPrice, stopLoss, takeProfit, riskAmount, form, side]);
 
   // Handle form submission
   const onSubmit = useCallback(
@@ -116,7 +115,7 @@ export const useTradeForm = () => {
             !isNaN(data.riskAmount) &&
             !isNaN(data.entryPrice) &&
             !isNaN(data.stopLoss)
-              ? calculatePositionSize(data.riskAmount, data.entryPrice, data.stopLoss, data.leverage || 1)
+              ? calculatePositionSize(data.riskAmount, data.entryPrice, data.stopLoss)
               : 0,
           quantity:
             data.riskAmount &&
@@ -126,7 +125,7 @@ export const useTradeForm = () => {
             !isNaN(data.entryPrice) &&
             !isNaN(data.stopLoss)
               ? calculateQuantity(
-                  calculatePositionSize(data.riskAmount, data.entryPrice, data.stopLoss, data.leverage || 1),
+                  calculatePositionSize(data.riskAmount, data.entryPrice, data.stopLoss),
                   data.entryPrice
                 )
               : 0,
@@ -135,7 +134,6 @@ export const useTradeForm = () => {
         // Update the store's formData before submitting
         Object.entries(formData).forEach(([key, value]) => {
           if (value !== undefined) {
-            // @ts-ignore - We know these fields exist in the store
             useTradeStore.getState().updateFormField(key, value);
           }
         });
@@ -183,11 +181,11 @@ export const useTradeForm = () => {
           : 0,
       positionSize:
         riskAmount && entryPrice && stopLoss && !isNaN(riskAmount) && !isNaN(entryPrice) && !isNaN(stopLoss)
-          ? calculatePositionSize(riskAmount, entryPrice, stopLoss, leverage || 1)
+          ? calculatePositionSize(riskAmount, entryPrice, stopLoss)
           : 0,
       quantity:
         riskAmount && entryPrice && stopLoss && !isNaN(riskAmount) && !isNaN(entryPrice) && !isNaN(stopLoss)
-          ? calculateQuantity(calculatePositionSize(riskAmount, entryPrice, stopLoss, leverage || 1), entryPrice)
+          ? calculateQuantity(calculatePositionSize(riskAmount, entryPrice, stopLoss), entryPrice)
           : 0,
     },
   };

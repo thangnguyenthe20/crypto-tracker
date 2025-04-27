@@ -39,13 +39,6 @@ const TradeTable: React.FC = () => {
     pageSize: 10,
   });
 
-  // Fetch trades on component mount if not already loaded
-  useEffect(() => {
-    if (trades.length === 0 && !isLoading) {
-      refreshTrades();
-    }
-  }, [refreshTrades, trades.length, isLoading]);
-
   // Define column configurations
   const columnDefinitions = useMemo<ColumnDefinition[]>(
     () => [
@@ -53,7 +46,6 @@ const TradeTable: React.FC = () => {
       { accessorKey: "timeframe", header: "TF", size: 60 },
       { accessorKey: "side", header: "Side", size: 60 },
       { accessorKey: "riskAmount", header: "Risk", size: 60 },
-      { accessorKey: "leverage", header: "Lev", size: 60 },
       { accessorKey: "entryPrice", header: "Entry", size: 80 },
       { accessorKey: "stopLoss", header: "SL", size: 80 },
       { accessorKey: "takeProfit", header: "TP", size: 80 },
@@ -149,35 +141,7 @@ const TradeTable: React.FC = () => {
     getPaginationRowModel: getPaginationRowModel(),
   });
 
-  // Initial loading state (no trades yet)
-  if (isLoading && trades.length === 0) {
-    return (
-      <div className="p-6 mb-8 bg-white rounded-lg shadow-md">
-        <h2 className="mb-4 text-xl font-semibold">Trade History</h2>
-        <div className="flex items-center justify-center py-12">
-          <div className="flex flex-col items-center gap-2">
-            <div
-              className="w-10 h-10 border-4 border-solid rounded-full animate-spin border-primary border-r-transparent"
-              role="status"
-            >
-              <span className="sr-only">Loading...</span>
-            </div>
-            <span className="mt-2 text-sm font-medium text-gray-700">Loading trades...</span>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Empty state component
-  if (!isLoading && trades.length === 0) {
-    return (
-      <div className="p-6 mb-8 bg-white rounded-lg shadow-md">
-        <h2 className="mb-4 text-xl font-semibold">Trade History</h2>
-        <div className="py-8 text-center text-gray-500">No trades recorded yet.</div>
-      </div>
-    );
-  }
+  const isEmpty = !isLoading && trades.length === 0;
 
   return (
     <div className="space-y-4">
@@ -192,14 +156,22 @@ const TradeTable: React.FC = () => {
           <TradeForm />
         </div>
       </div>
-      <div className="relative border rounded-md">
-        <TableLoadingMask isLoading={isLoading} />
-        <Table>
-          <TableHeader table={table} />
-          <TableBody table={table} />
-        </Table>
-      </div>
-      <PaginationControls table={table} pageSizeOptions={PAGE_SIZE_OPTIONS} />
+      {isEmpty ? (
+        <div className="p-6 mb-8 bg-white rounded-lg shadow-md">
+          <div className="py-8 text-center text-gray-500">No trades recorded yet.</div>
+        </div>
+      ) : (
+        <>
+          <div className="relative border rounded-md">
+            <TableLoadingMask isLoading={isLoading} />
+            <Table>
+              <TableHeader table={table} />
+              <TableBody table={table} />
+            </Table>
+          </div>
+          <PaginationControls table={table} pageSizeOptions={PAGE_SIZE_OPTIONS} />
+        </>
+      )}
     </div>
   );
 };

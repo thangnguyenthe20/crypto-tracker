@@ -50,23 +50,9 @@ export const calculatePnL = (
 /**
  * Calculate position size based on risk amount and stop loss
  */
-export const calculatePositionSize = (
-  riskAmount: number,
-  entryPrice: number,
-  stopLoss: number,
-  leverage: number = 1
-): number => {
+export const calculatePositionSize = (riskAmount: number, entryPrice: number, stopLoss: number): number => {
   // Check for undefined, null, NaN or zero values
-  if (
-    !riskAmount ||
-    !entryPrice ||
-    !stopLoss ||
-    !leverage ||
-    isNaN(riskAmount) ||
-    isNaN(entryPrice) ||
-    isNaN(stopLoss) ||
-    isNaN(leverage)
-  ) {
+  if (!riskAmount || !entryPrice || !stopLoss || isNaN(riskAmount) || isNaN(entryPrice) || isNaN(stopLoss)) {
     return 0;
   }
 
@@ -75,7 +61,7 @@ export const calculatePositionSize = (
   // Avoid division by zero
   if (riskPercentage === 0) return 0;
 
-  const positionSize = (riskAmount / riskPercentage) * leverage;
+  const positionSize = riskAmount / riskPercentage;
 
   return parseFloat(positionSize.toFixed(4));
 };
@@ -219,12 +205,7 @@ export const createTradeRecord = (formData: Partial<TradeRecord>): TradeRecord =
   let quantity = formData.quantity;
 
   if (!positionSize && formData.riskAmount && formData.entryPrice && formData.stopLoss) {
-    positionSize = calculatePositionSize(
-      formData.riskAmount,
-      formData.entryPrice,
-      formData.stopLoss,
-      formData.leverage || 1
-    );
+    positionSize = calculatePositionSize(formData.riskAmount, formData.entryPrice, formData.stopLoss);
   }
 
   if (!quantity && positionSize && formData.entryPrice) {
@@ -236,7 +217,7 @@ export const createTradeRecord = (formData: Partial<TradeRecord>): TradeRecord =
     timeframe: formData.timeframe || "M30",
     side: formData.side || "buy",
     riskAmount: formData.riskAmount || 0,
-    leverage: formData.leverage || 1,
+    leverage: 1,
     entryPrice: formData.entryPrice || 0,
     stopLoss: formData.stopLoss || 0,
     takeProfit: formData.takeProfit || 0,

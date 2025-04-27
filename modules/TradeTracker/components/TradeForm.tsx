@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogT
 import { useTradeStore } from "@/modules/TradeTracker/store";
 import { useTradeForm } from "@/modules/TradeTracker/hooks";
 import { SIDE_OPTIONS, TIMEFRAME_OPTIONS } from "@/modules/TradeTracker/constants";
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
 
@@ -98,34 +98,19 @@ export const TradeForm: React.FC = () => {
               />
 
               {/* Symbol and Risk Amount */}
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="symbol"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Symbol *</FormLabel>
-                      <FormControl>
-                        <Input placeholder="BTC" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="riskAmount"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Risk Amount ($)</FormLabel>
-                      <FormControl>
-                        <Input type="number" placeholder="0.0" min={0} step="0.1" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+              <FormField
+                control={form.control}
+                name="symbol"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Symbol *</FormLabel>
+                    <FormControl>
+                      <Input placeholder="BTC" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               {/* Side and Timeframe */}
               <div className="grid grid-cols-2 gap-4">
@@ -136,7 +121,7 @@ export const TradeForm: React.FC = () => {
                     <FormItem>
                       <FormLabel>Side *</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
+                        <FormControl className="w-full">
                           <SelectTrigger>
                             <SelectValue placeholder="Select side" />
                           </SelectTrigger>
@@ -160,7 +145,7 @@ export const TradeForm: React.FC = () => {
                     <FormItem>
                       <FormLabel>Timeframe</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
+                        <FormControl className="w-full">
                           <SelectTrigger>
                             <SelectValue placeholder="Select timeframe" />
                           </SelectTrigger>
@@ -195,12 +180,12 @@ export const TradeForm: React.FC = () => {
               />
               <FormField
                 control={form.control}
-                name="leverage"
+                name="riskAmount"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Leverage</FormLabel>
+                    <FormLabel>Risk Amount ($)</FormLabel>
                     <FormControl>
-                      <Input type="number" placeholder="1" min={1} step="0.1" {...field} />
+                      <Input type="number" placeholder="0.0" min={0} step="0.1" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

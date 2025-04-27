@@ -23,16 +23,7 @@ export const PAGE_SIZE_OPTIONS = [10, 20, 30, 50];
 
 export const NON_EDITABLE_COLUMNS = ["_id", "rr", "realizedRR", "pnl", "actions"];
 
-export const NUMBER_FIELDS = [
-  "entryPrice",
-  "stopLoss",
-  "takeProfit",
-  "exitPrice",
-  "quantity",
-  "leverage",
-  "riskAmount",
-  "fee",
-];
+export const NUMBER_FIELDS = ["entryPrice", "stopLoss", "takeProfit", "exitPrice", "quantity", "riskAmount", "fee"];
 
 export const PRICE_FIELDS = ["entryPrice", "stopLoss", "takeProfit", "exitPrice", "quantity"];
 

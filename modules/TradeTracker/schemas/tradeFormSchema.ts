@@ -14,9 +14,6 @@ export const tradeFormSchema = z
     entryPrice: z.coerce
       .number({ invalid_type_error: "Entry price must be a valid number" })
       .min(0, { message: "Entry price is required" }),
-    leverage: z.coerce
-      .number({ invalid_type_error: "Leverage must be a valid number" })
-      .min(1, { message: "Leverage must be at least 1" }),
     stopLoss: z.coerce
       .number({ invalid_type_error: "Stop loss must be a valid number" })
       .min(0, { message: "Stop loss is required" }),
