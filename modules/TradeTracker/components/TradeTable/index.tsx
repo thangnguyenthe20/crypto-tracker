@@ -1,36 +1,29 @@
 "use client";
 
-import React, { useState, useMemo, useCallback, useEffect } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import {
-  createColumnHelper,
   getCoreRowModel,
   getSortedRowModel,
   useReactTable,
   SortingState,
   getPaginationRowModel,
-  Column,
 } from "@tanstack/react-table";
 import { TableHeader } from "./components/TableHeader";
 import { TableBody } from "./components/TableBody";
 import { PaginationControls } from "./components/PaginationControls";
-import { TradeRecord } from "./types";
+import { ColumnDefinition } from "./types";
 import { PAGE_SIZE_OPTIONS } from "../../constants";
-import EditableCell from "./components/Cell/EditableCell";
 import { Table } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { ArrowDownIcon, ArrowUpIcon } from "lucide-react";
 import { useTrades } from "../../hooks";
 import { TradeForm } from "../TradeForm";
-import { DeleteButton } from "./components/DeleteButton";
 import { TableLoadingMask } from "./components/TableLoadingMask";
+import { getTableColumns } from "./utils";
 
-// Column definition type with size property
-type ColumnDefinition = {
-  accessorKey: keyof TradeRecord;
-  header: string;
-  size: number;
-};
-
+/**
+ * TradeTable component displays a table of trade records with sorting, pagination,
+ * and inline editing capabilities.
+ */
 const TradeTable: React.FC = () => {
   const { trades, isLoading, refreshTrades } = useTrades();
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -62,72 +55,10 @@ const TradeTable: React.FC = () => {
     []
   );
 
-  // Create a reusable header component
-  const HeaderComponent = useCallback(
-    ({ column, header, size }: { column: Column<TradeRecord, unknown>; header: string; size: number }) => {
-      const isSorted = column.getIsSorted();
-      const isSortedAsc = isSorted === "asc";
-      const isSortedDesc = isSorted === "desc";
-
-      return (
-        <div style={{ width: size }}>
-          <Button
-            variant="ghost"
-            className="!p-0 w-full flex text-left justify-start"
-            onClick={() => {
-              if (isSortedDesc) {
-                column.clearSorting();
-              } else {
-                column.toggleSorting(isSortedAsc);
-              }
-            }}
-          >
-            {header}
-            {isSorted && (
-              <span className="ml-1">
-                {isSortedAsc ? <ArrowDownIcon className="w-4 h-4" /> : <ArrowUpIcon className="w-4 h-4" />}
-              </span>
-            )}
-          </Button>
-        </div>
-      );
-    },
-    []
-  );
-
   // Generate columns with the EditableCell component
   const columns = useMemo(() => {
-    const columnHelper = createColumnHelper<TradeRecord>();
-
-    // Create columns from column definitions
-    const dataColumns = columnDefinitions.map((col) =>
-      columnHelper.accessor(col.accessorKey, {
-        header: ({ column }) => <HeaderComponent column={column} header={col.header} size={col.size} />,
-        cell: (props) => {
-          const isTextColumn = col.accessorKey === "strategy" || col.accessorKey === "note";
-          return (
-            <div style={{ width: col.size }} className={`${isTextColumn ? "whitespace-normal" : "overflow-hidden"}`}>
-              <EditableCell {...props} />
-            </div>
-          );
-        },
-      })
-    );
-
-    // Add action column with delete button
-    const actionColumn = columnHelper.display({
-      id: "actions",
-      header: () => <div style={{ width: 50 }}>Actions</div>,
-      cell: (props) => (
-        <div className="flex justify-center" data-cell-type="action">
-          <DeleteButton trade={props.row.original} />
-        </div>
-      ),
-    });
-
-    // Return all columns with action column at the end
-    return [...dataColumns, actionColumn];
-  }, [columnDefinitions, HeaderComponent]);
+    return getTableColumns(columnDefinitions);
+  }, [columnDefinitions]);
 
   // Create table instance
   const table = useReactTable({
@@ -146,6 +77,33 @@ const TradeTable: React.FC = () => {
 
   const isEmpty = !isLoading && trades.length === 0;
 
+  // Render empty state when no trades are available
+  const renderEmptyState = useCallback(
+    () => (
+      <div className="p-6 mb-8 bg-white rounded-lg shadow-md">
+        <div className="py-8 text-center text-gray-500">No trades recorded yet.</div>
+      </div>
+    ),
+    []
+  );
+
+  // Render table with data
+  const renderTable = useCallback(
+    () => (
+      <>
+        <div className="relative border rounded-md">
+          <TableLoadingMask isLoading={isLoading} />
+          <Table>
+            <TableHeader table={table} />
+            <TableBody table={table} />
+          </Table>
+        </div>
+        <PaginationControls table={table} pageSizeOptions={PAGE_SIZE_OPTIONS} />
+      </>
+    ),
+    [isLoading, table]
+  );
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -153,28 +111,13 @@ const TradeTable: React.FC = () => {
           <h2 className="text-xl font-semibold">Trade History</h2>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => refreshTrades()} disabled={isLoading}>
+          <Button variant="outline" onClick={refreshTrades} disabled={isLoading}>
             Refresh
           </Button>
           <TradeForm />
         </div>
       </div>
-      {isEmpty ? (
-        <div className="p-6 mb-8 bg-white rounded-lg shadow-md">
-          <div className="py-8 text-center text-gray-500">No trades recorded yet.</div>
-        </div>
-      ) : (
-        <>
-          <div className="relative border rounded-md">
-            <TableLoadingMask isLoading={isLoading} />
-            <Table>
-              <TableHeader table={table} />
-              <TableBody table={table} />
-            </Table>
-          </div>
-          <PaginationControls table={table} pageSizeOptions={PAGE_SIZE_OPTIONS} />
-        </>
-      )}
+      {isEmpty ? renderEmptyState() : renderTable()}
     </div>
   );
 };

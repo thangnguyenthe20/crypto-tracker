@@ -215,7 +215,7 @@ export const createTradeRecord = (formData: Partial<TradeRecord>): TradeRecord =
   const newTrade: TradeRecord = {
     symbol: formData.symbol || "",
     timeframe: formData.timeframe || "M30",
-    side: formData.side || "buy",
+    side: (formData.side as "buy" | "sell") || "buy",
     riskAmount: formData.riskAmount || 0,
     leverage: 1,
     entryPrice: formData.entryPrice || 0,

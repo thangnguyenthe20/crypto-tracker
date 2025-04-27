@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { TradeRecord } from "../components/TradeTable/types";
-import { API_ENDPOINTS, DEFAULT_FORM_VALUES } from "../constants";
+import { API_ENDPOINTS, DEFAULT_FORM_VALUES, getDefaultFormValues } from "../constants";
 import { createTradeRecord } from "../utils";
 
 // Define the trade store state interface
@@ -52,10 +52,10 @@ interface TradeState {
 export const useTradeStore = create<TradeState>((set, get) => ({
   // Initial state
   trades: [],
-  isLoading: false,
+  isLoading: true,
   error: null,
 
-  formData: { ...DEFAULT_FORM_VALUES },
+  formData: getDefaultFormValues(),
   isSubmitting: false,
   formError: null,
   showForm: false,
@@ -82,7 +82,7 @@ export const useTradeStore = create<TradeState>((set, get) => ({
         _id: trade._id,
         symbol: trade.symbol,
         timeframe: trade.timeframe,
-        side: trade.side,
+        side: trade.side as "buy" | "sell",
         riskAmount: trade.riskAmount,
         leverage: trade.leverage,
         entryPrice: trade.entryPrice,
@@ -118,7 +118,7 @@ export const useTradeStore = create<TradeState>((set, get) => ({
       const tradeData = {
         symbol: trade.symbol,
         timeframe: trade.timeframe,
-        side: trade.side,
+        side: trade.side as "buy" | "sell",
         riskAmount: trade.riskAmount,
         leverage: trade.leverage,
         entryPrice: trade.entryPrice,
@@ -181,7 +181,7 @@ export const useTradeStore = create<TradeState>((set, get) => ({
       const tradesData = trades.map((trade) => ({
         symbol: trade.symbol,
         timeframe: trade.timeframe,
-        side: trade.side,
+        side: trade.side as "buy" | "sell",
         riskAmount: trade.riskAmount,
         leverage: trade.leverage,
         entryPrice: trade.entryPrice,
@@ -253,7 +253,7 @@ export const useTradeStore = create<TradeState>((set, get) => ({
     const tradeData = {
       symbol: trade.symbol,
       timeframe: trade.timeframe,
-      side: trade.side,
+      side: trade.side as "buy" | "sell",
       riskAmount: trade.riskAmount,
       leverage: trade.leverage,
       entryPrice: trade.entryPrice,
@@ -372,7 +372,16 @@ export const useTradeStore = create<TradeState>((set, get) => ({
 
   // Form actions
   setFormData: (data) => {
-    set({ formData: data });
+    // Ensure side is properly typed if present
+    if (data.side && typeof data.side === "string") {
+      const typedData = {
+        ...data,
+        side: data.side === "buy" || data.side === "sell" ? (data.side as "buy" | "sell") : "buy",
+      };
+      set({ formData: typedData });
+    } else {
+      set({ formData: data });
+    }
   },
 
   updateFormField: (field, value) => {
@@ -381,6 +390,15 @@ export const useTradeStore = create<TradeState>((set, get) => ({
       const newValidationErrors = { ...state.validationErrors };
       if (newValidationErrors[field]) {
         delete newValidationErrors[field];
+      }
+
+      // Special handling for the side field to ensure it's properly typed
+      if (field === "side" && (value === "buy" || value === "sell")) {
+        return {
+          formData: { ...state.formData, [field]: value as "buy" | "sell" },
+          formError: null, // Clear error when user makes changes
+          validationErrors: newValidationErrors,
+        };
       }
 
       return {
@@ -393,7 +411,7 @@ export const useTradeStore = create<TradeState>((set, get) => ({
 
   resetForm: () => {
     set({
-      formData: { ...DEFAULT_FORM_VALUES },
+      formData: getDefaultFormValues(),
       formError: null,
       validationErrors: {},
       isEditMode: false,
@@ -409,6 +427,7 @@ export const useTradeStore = create<TradeState>((set, get) => ({
     // Make sure all numeric values are properly converted to numbers
     const formattedTrade = {
       ...trade,
+      side: trade.side as "buy" | "sell",
       entryPrice: Number(trade.entryPrice),
       stopLoss: Number(trade.stopLoss),
       takeProfit: Number(trade.takeProfit),
@@ -451,6 +470,7 @@ export const useTradeStore = create<TradeState>((set, get) => ({
       // Convert form data to proper types
       const tradeData = {
         ...formData,
+        side: formData.side as "buy" | "sell",
         entryPrice: Number(formData.entryPrice),
         stopLoss: Number(formData.stopLoss),
         takeProfit: Number(formData.takeProfit),
@@ -477,7 +497,7 @@ export const useTradeStore = create<TradeState>((set, get) => ({
 
       // Reset form on success and close the form
       set({
-        formData: { ...DEFAULT_FORM_VALUES },
+        formData: getDefaultFormValues(),
         formError: null,
         validationErrors: {},
         showForm: false, // Close the form after successful submission

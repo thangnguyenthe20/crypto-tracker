@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { CellInputProps } from "../../types";
-import { PRICE_FIELDS } from "../../../../constants";
+import { PRICE_FIELDS, TEXT_FIELDS } from "../../../../constants";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
@@ -87,7 +87,7 @@ export const DateTimeInput: React.FC<CellInputProps> = ({ value, onChange, onBlu
 };
 
 export const TextInput: React.FC<CellInputProps> = ({ value, onChange, onBlur, onKeyDown, columnId }) => {
-  const isMultiline = columnId === "strategy" || columnId === "note";
+  const isMultiline = TEXT_FIELDS.includes(columnId);
 
   return isMultiline ? (
     <textarea

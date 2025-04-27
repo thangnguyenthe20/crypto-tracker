@@ -1,7 +1,17 @@
 import { CellContext } from "@tanstack/react-table";
 import { CellInputProps, EditingCell, TradeRecord } from "../../types";
-import { useCallback, useEffect, useState, memo } from "react";
-import { NON_EDITABLE_COLUMNS, NUMBER_FIELDS, SIDE_OPTIONS, TIMEFRAME_OPTIONS } from "../../../../constants";
+import { useCallback, useEffect, useState, memo, useMemo } from "react";
+import {
+  NON_EDITABLE_COLUMNS,
+  NUMBER_FIELDS,
+  SIDE_OPTIONS,
+  TIMEFRAME_OPTIONS,
+  ALWAYS_EDIT_COLUMNS,
+  RR_RECALC_FIELDS,
+  PNL_RECALC_FIELDS,
+  TEXT_FIELDS,
+  DATE_FIELDS,
+} from "../../../../constants";
 import DisplayCell from "./DisplayCell";
 import { DateTimeInput, NumberInput, SelectInput, TextInput } from "./InputComponents";
 import { calculatePnL, calculateRealizedRR, calculateRR } from "../../utils";
@@ -9,12 +19,9 @@ import clsx from "clsx";
 import { useTrades } from "@/modules/TradeTracker/hooks";
 import { parseFormValue } from "@/modules/TradeTracker/utils";
 
-// Special columns that are always in edit mode
-const ALWAYS_EDIT_COLUMNS = ["side", "timeframe", "entryTime", "exitTime"];
-
 /**
- * Optimized EditableCell component with memoization
- * Handles cell editing and updates for the trade table
+ * EditableCell component handles cell editing and updates for the trade table
+ * Optimized with memoization and clear separation of concerns
  */
 const EditableCell = ({ getValue, row, column }: CellContext<TradeRecord, unknown>) => {
   const { trades, updateTrade } = useTrades();
@@ -25,9 +32,18 @@ const EditableCell = ({ getValue, row, column }: CellContext<TradeRecord, unknow
   const rowId = row.original._id;
   const columnId = column.id as keyof TradeRecord;
 
-  const isEditing = editingCell?.id === rowId && editingCell?.column === columnId;
-  const isEditable = !NON_EDITABLE_COLUMNS.includes(columnId);
-  const isAlwaysEditing = ALWAYS_EDIT_COLUMNS.includes(columnId);
+  // Memoize these values to prevent unnecessary recalculations
+  const cellState = useMemo(
+    () => ({
+      isEditing: editingCell?.id === rowId && editingCell?.column === columnId,
+      isEditable: !NON_EDITABLE_COLUMNS.includes(columnId),
+      isAlwaysEditing: ALWAYS_EDIT_COLUMNS.includes(columnId),
+      isMultilineField: TEXT_FIELDS.includes(columnId),
+      isDateField: DATE_FIELDS.includes(columnId),
+      isNumberField: NUMBER_FIELDS.includes(columnId),
+    }),
+    [editingCell, rowId, columnId]
+  );
 
   // Update local state when cell value changes externally
   useEffect(() => {
@@ -36,16 +52,18 @@ const EditableCell = ({ getValue, row, column }: CellContext<TradeRecord, unknow
 
   // Handle cell click to enter edit mode
   const onCellClick = useCallback(() => {
-    if (!isEditable || !rowId) return;
+    if (!cellState.isEditable || !rowId) return;
     setEditingCell({ id: rowId, column: columnId });
-  }, [columnId, rowId, isEditable]);
+  }, [columnId, rowId, cellState.isEditable]);
 
-  // Update trade with recalculated values
-  const updateTradeWithCalculations = useCallback((trade: TradeRecord, fieldId: string, parsedValue: any) => {
+  /**
+   * Recalculate derived values based on field changes
+   */
+  const recalculateDerivedValues = useCallback((trade: TradeRecord, fieldId: string, parsedValue: any) => {
     const updatedTrade = { ...trade, [fieldId]: parsedValue };
 
     // Recalculate risk-reward ratio if price-related fields change
-    if (["entryPrice", "stopLoss", "takeProfit"].includes(fieldId)) {
+    if (RR_RECALC_FIELDS.includes(fieldId)) {
       const entryPrice = fieldId === "entryPrice" ? Number(parsedValue) : trade.entryPrice;
       const stopLoss = fieldId === "stopLoss" ? Number(parsedValue) : trade.stopLoss;
       const takeProfit = fieldId === "takeProfit" ? Number(parsedValue) : trade.takeProfit;
@@ -58,25 +76,30 @@ const EditableCell = ({ getValue, row, column }: CellContext<TradeRecord, unknow
     }
 
     // Recalculate PnL if relevant fields changed
-    if (["entryPrice", "exitPrice", "quantity", "side", "fee"].includes(fieldId)) {
-      if (updatedTrade.entryPrice && updatedTrade.exitPrice && updatedTrade.quantity) {
-        const side = fieldId === "side" ? (parsedValue as "buy" | "sell") : trade.side;
-        const entryPrice = fieldId === "entryPrice" ? Number(parsedValue) : trade.entryPrice;
-        const exitPrice = fieldId === "exitPrice" ? Number(parsedValue) : trade.exitPrice;
-        const quantity = fieldId === "quantity" ? Number(parsedValue) : trade.quantity;
-        const fee = fieldId === "fee" ? Number(parsedValue) : trade.fee || 0;
+    if (
+      PNL_RECALC_FIELDS.includes(fieldId) &&
+      updatedTrade.entryPrice &&
+      updatedTrade.exitPrice &&
+      updatedTrade.quantity
+    ) {
+      const side = fieldId === "side" ? (parsedValue as "buy" | "sell") : trade.side;
+      const entryPrice = fieldId === "entryPrice" ? Number(parsedValue) : trade.entryPrice;
+      const exitPrice = fieldId === "exitPrice" ? Number(parsedValue) : trade.exitPrice;
+      const quantity = fieldId === "quantity" ? Number(parsedValue) : trade.quantity;
+      const fee = fieldId === "fee" ? Number(parsedValue) : trade.fee || 0;
 
-        updatedTrade.pnl = calculatePnL(side, entryPrice, exitPrice, quantity, fee);
-      }
+      updatedTrade.pnl = calculatePnL(side, entryPrice, exitPrice, quantity, fee);
     }
 
     return updatedTrade;
   }, []);
 
-  // Handle cell blur to save changes
-  const onCellBlur = useCallback(() => {
+  /**
+   * Save changes when cell loses focus
+   */
+  const saveChanges = useCallback(() => {
     // Skip if not editing (except for special columns that are always in edit mode)
-    if (!isAlwaysEditing && !editingCell) return;
+    if (!cellState.isAlwaysEditing && !editingCell) return;
 
     // Skip if value hasn't changed
     if (value === initialValue) {
@@ -95,7 +118,7 @@ const EditableCell = ({ getValue, row, column }: CellContext<TradeRecord, unknow
     const parsedValue = parseFormValue(columnId, value as string);
 
     // Update trade with recalculated values
-    const updatedTrade = updateTradeWithCalculations(trade, columnId, parsedValue);
+    const updatedTrade = recalculateDerivedValues(trade, columnId, parsedValue);
 
     // Update the trade in the store
     updateTrade(updatedTrade);
@@ -104,49 +127,54 @@ const EditableCell = ({ getValue, row, column }: CellContext<TradeRecord, unknow
     columnId,
     editingCell,
     initialValue,
-    isAlwaysEditing,
+    cellState.isAlwaysEditing,
     rowId,
     trades,
     updateTrade,
-    updateTradeWithCalculations,
+    recalculateDerivedValues,
     value,
   ]);
 
-  // Handle keyboard events
-  const onKeyDown = useCallback(
+  /**
+   * Handle keyboard events for cell editing
+   */
+  const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      const isMultilineField = columnId === "strategy" || columnId === "note";
-
       if (e.key === "Enter") {
         // For multiline fields, only save on Shift+Enter
-        if (isMultilineField) {
+        if (cellState.isMultilineField) {
           if (e.shiftKey) {
-            onCellBlur();
+            saveChanges();
           }
           // Otherwise let the textarea handle the Enter key
         } else {
           // For single-line fields, save on Enter
-          onCellBlur();
+          saveChanges();
         }
       } else if (e.key === "Escape") {
         setValue(initialValue); // Reset to initial value
         setEditingCell(null);
       }
     },
-    [onCellBlur, initialValue, columnId]
+    [saveChanges, initialValue, cellState.isMultilineField]
   );
 
   // Common props for all input components
-  const inputProps: CellInputProps = {
-    value,
-    onChange: setValue,
-    onBlur: onCellBlur,
-    onKeyDown: onKeyDown,
-    columnId,
-  };
+  const inputProps: CellInputProps = useMemo(
+    () => ({
+      value,
+      onChange: setValue,
+      onBlur: saveChanges,
+      onKeyDown: handleKeyDown,
+      columnId,
+    }),
+    [value, setValue, saveChanges, handleKeyDown, columnId]
+  );
 
-  // Render input based on column type
-  const renderInput = () => {
+  /**
+   * Render the appropriate input component based on column type
+   */
+  const renderInput = useCallback(() => {
     // Side column (always in edit mode)
     if (columnId === "side") {
       return (
@@ -164,7 +192,7 @@ const EditableCell = ({ getValue, row, column }: CellContext<TradeRecord, unknow
     }
 
     // Date fields
-    if (columnId === "entryTime" || columnId === "exitTime") {
+    if (cellState.isDateField) {
       return <DateTimeInput {...inputProps} />;
     }
 
@@ -174,30 +202,24 @@ const EditableCell = ({ getValue, row, column }: CellContext<TradeRecord, unknow
         <SelectInput
           {...inputProps}
           options={TIMEFRAME_OPTIONS}
-          className={clsx("uppercase text-xs cursor-pointer px-2 !h-[30px] w-[48px] side-select focus-visible:ring-0")}
+          className="uppercase text-xs cursor-pointer px-2 !h-[30px] w-[48px] side-select focus-visible:ring-0"
         />
       );
     }
 
     // Number fields
-    if (NUMBER_FIELDS.includes(columnId)) {
+    if (cellState.isNumberField) {
       return <NumberInput {...inputProps} />;
     }
 
     // Default to text input
     return <TextInput {...inputProps} />;
-  };
+  }, [columnId, inputProps, value, cellState]);
 
   // If not editing and not a special column, show display cell
-  if (!isEditing && !isAlwaysEditing) {
+  if (!cellState.isEditing && !cellState.isAlwaysEditing) {
     return (
-      <DisplayCell
-        value={initialValue}
-        columnId={columnId}
-        isEditable={isEditable}
-        onEdit={onCellClick}
-        row={row.original}
-      />
+      <DisplayCell value={initialValue} columnId={columnId} isEditable={cellState.isEditable} onEdit={onCellClick} />
     );
   }
 

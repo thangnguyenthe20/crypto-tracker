@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { useTradeStore } from "@/modules/TradeTracker/store";
 import { useTradeForm } from "@/modules/TradeTracker/hooks";
-import { SIDE_OPTIONS, TIMEFRAME_OPTIONS } from "@/modules/TradeTracker/constants";
+import { SIDE_OPTIONS, TIMEFRAME_OPTIONS, DEFAULT_FORM_VALUES } from "@/modules/TradeTracker/constants";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
@@ -20,17 +20,19 @@ export const TradeForm: React.FC = () => {
   const { showForm, toggleForm, isEditMode, formData } = useTradeStore();
   const { form, onSubmit, handleDialogChange, calculatedValues } = useTradeForm();
 
-  // Log form values when they change
-  useEffect(() => {
+  // We don't need to log form values anymore
+
+  const handleAddTradeClick = () => {
+    // Make sure we're not in edit mode when adding a new trade
     if (isEditMode) {
-      console.log("Form data in edit mode:", formData);
-      console.log("Current form values:", form.getValues());
+      useTradeStore.getState().resetForm();
     }
-  }, [isEditMode, formData, form]);
+    toggleForm();
+  };
 
   const renderTrigger = () => (
     <DialogTrigger asChild>
-      <Button onClick={toggleForm}>Add Trade</Button>
+      <Button onClick={handleAddTradeClick}>Add Trade</Button>
     </DialogTrigger>
   );
 
@@ -63,7 +65,6 @@ export const TradeForm: React.FC = () => {
                         modal={true}
                         date={field.value ? new Date(field.value) : undefined}
                         setDate={(date) => {
-                          console.log("Entry date selected:", date);
                           field.onChange(date ? date.toISOString() : "");
                         }}
                         placeholder="Select entry date/time"
@@ -89,7 +90,6 @@ export const TradeForm: React.FC = () => {
                         modal={true}
                         date={field.value ? new Date(field.value) : undefined}
                         setDate={(date) => {
-                          console.log("Exit date selected:", date);
                           field.onChange(date ? date.toISOString() : "");
                         }}
                         placeholder="Select exit date/time"
@@ -341,7 +341,20 @@ export const TradeForm: React.FC = () => {
             )}
 
             <DialogFooter>
-              <Button type="button" onClick={() => form.reset()} variant="outline">
+              <Button
+                type="button"
+                onClick={() => {
+                  // Reset form to default values
+                  if (isEditMode) {
+                    // In edit mode, reset to the original trade data
+                    form.reset(formData);
+                  } else {
+                    // In add mode, reset to empty form with defaults
+                    form.reset(getDefaultFormValues());
+                  }
+                }}
+                variant="outline"
+              >
                 Reset
               </Button>
               <Button type="button" onClick={toggleForm} variant="outline">

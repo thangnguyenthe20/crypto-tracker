@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useTradeStore } from "../store";
 import { tradeFormSchema, TradeFormValues } from "../schemas/tradeFormSchema";
 import { calculateRR, calculatePositionSize, calculateQuantity } from "../utils";
-import { DEFAULT_FORM_VALUES } from "../constants";
+import { DEFAULT_FORM_VALUES, getDefaultFormValues } from "../constants";
 
 /**
  * Enhanced Trade form hook using react-hook-form and zod validation
@@ -15,26 +15,7 @@ export const useTradeForm = () => {
   // Initialize form with react-hook-form and zod validation
   const form = useForm<TradeFormValues>({
     resolver: zodResolver(tradeFormSchema),
-    defaultValues: {
-      symbol: formData.symbol || "",
-      side: (formData.side as "buy" | "sell") || (DEFAULT_FORM_VALUES.side as "buy" | "sell"),
-      timeframe: formData.timeframe || DEFAULT_FORM_VALUES.timeframe,
-      riskAmount: formData.riskAmount || undefined,
-      entryPrice: formData.entryPrice || undefined,
-      stopLoss: formData.stopLoss || undefined,
-      takeProfit: formData.takeProfit || undefined,
-      strategy: formData.strategy || "",
-      note: formData.note || "",
-      entryTime: formData.entryTime || new Date().toISOString(),
-      exitTime: formData.exitTime || "",
-      // Values for calculated fields
-      rr: formData.rr || 0,
-      positionSize: formData.positionSize || 0,
-      quantity: formData.quantity || 0,
-      exitPrice: formData.exitPrice || undefined,
-      pnl: formData.pnl || undefined,
-      realizedRR: formData.realizedRR || undefined,
-    },
+    defaultValues: isEditMode ? formData : getDefaultFormValues(),
     mode: "onChange",
   });
 
@@ -52,28 +33,7 @@ export const useTradeForm = () => {
   useEffect(() => {
     if (isEditMode && Object.keys(formData).length > 0) {
       // Update form values with formData
-      form.reset(
-        {
-          symbol: formData.symbol || "",
-          side: (formData.side as "buy" | "sell") || (DEFAULT_FORM_VALUES.side as "buy" | "sell"),
-          timeframe: formData.timeframe || DEFAULT_FORM_VALUES.timeframe,
-          riskAmount: formData.riskAmount || undefined,
-          entryPrice: formData.entryPrice || undefined,
-          stopLoss: formData.stopLoss || undefined,
-          takeProfit: formData.takeProfit || undefined,
-          strategy: formData.strategy || "",
-          note: formData.note || "",
-          entryTime: formData.entryTime || new Date().toISOString(),
-          exitTime: formData.exitTime || "",
-          rr: formData.rr || 0,
-          positionSize: formData.positionSize || 0,
-          quantity: formData.quantity || 0,
-          exitPrice: formData.exitPrice || undefined,
-          pnl: formData.pnl || undefined,
-          realizedRR: formData.realizedRR || undefined,
-        },
-        { keepDefaultValues: true }
-      );
+      form.reset(formData, { keepDefaultValues: true });
     }
   }, [formData, isEditMode, form]);
 
@@ -106,69 +66,35 @@ export const useTradeForm = () => {
   const onSubmit = useCallback(
     async (data: TradeFormValues) => {
       try {
-        // Validate required fields
-        if (!data.symbol) {
-          form.setError("symbol", { message: "Symbol is required" });
-          return false;
+        // The validation is already handled by zod schema, but we'll add a safety check
+        const requiredFields = ["symbol", "entryPrice", "stopLoss", "takeProfit"];
+        for (const field of requiredFields) {
+          if (!data[field as keyof TradeFormValues]) {
+            form.setError(field as any, { message: `${field.charAt(0).toUpperCase() + field.slice(1)} is required` });
+            return false;
+          }
         }
 
-        if (!data.entryPrice) {
-          form.setError("entryPrice", { message: "Entry price is required" });
-          return false;
-        }
-
-        if (!data.stopLoss) {
-          form.setError("stopLoss", { message: "Stop loss is required" });
-          return false;
-        }
-
-        if (!data.takeProfit) {
-          form.setError("takeProfit", { message: "Take profit is required" });
-          return false;
-        }
-
-        // Add calculated fields to the form data with proper validation
-        const formData = {
-          ...data,
-          rr:
-            data.entryPrice &&
-            data.stopLoss &&
-            data.takeProfit &&
-            !isNaN(data.entryPrice) &&
-            !isNaN(data.stopLoss) &&
-            !isNaN(data.takeProfit)
-              ? calculateRR(data.entryPrice, data.stopLoss, data.takeProfit)
-              : 0,
-          // Calculate position size and quantity if risk amount is provided
-          positionSize:
-            data.riskAmount &&
-            data.entryPrice &&
-            data.stopLoss &&
-            !isNaN(data.riskAmount) &&
-            !isNaN(data.entryPrice) &&
-            !isNaN(data.stopLoss)
-              ? calculatePositionSize(data.riskAmount, data.entryPrice, data.stopLoss)
-              : 0,
-          quantity:
-            data.riskAmount &&
-            data.entryPrice &&
-            data.stopLoss &&
-            !isNaN(data.riskAmount) &&
-            !isNaN(data.entryPrice) &&
-            !isNaN(data.stopLoss)
-              ? calculateQuantity(
-                  calculatePositionSize(data.riskAmount, data.entryPrice, data.stopLoss),
-                  data.entryPrice
-                )
-              : 0,
+        // Calculate derived values
+        const calculatedValues = {
+          rr: calculateRR(data.entryPrice!, data.stopLoss!, data.takeProfit!),
+          positionSize: data.riskAmount ? calculatePositionSize(data.riskAmount, data.entryPrice!, data.stopLoss!) : 0,
+          quantity: 0,
         };
 
-        // Update the store's formData before submitting
-        Object.entries(formData).forEach(([key, value]) => {
-          if (value !== undefined) {
-            useTradeStore.getState().updateFormField(key, value);
-          }
-        });
+        // Calculate quantity based on position size
+        if (calculatedValues.positionSize > 0) {
+          calculatedValues.quantity = calculateQuantity(calculatedValues.positionSize, data.entryPrice!);
+        }
+
+        // Prepare complete form data with calculated values
+        const completeFormData = {
+          ...data,
+          ...calculatedValues,
+        };
+
+        // Update the store's formData with the complete data
+        useTradeStore.getState().setFormData(completeFormData);
 
         // Submit the form data to the store
         await submitForm();
@@ -199,30 +125,19 @@ export const useTradeForm = () => {
         useTradeStore.getState().resetForm();
       } else if (open && isEditMode) {
         // When opening in edit mode, reset the form with the current formData
-        form.reset({
-          symbol: formData.symbol || "",
-          side: (formData.side as "buy" | "sell") || (DEFAULT_FORM_VALUES.side as "buy" | "sell"),
-          timeframe: formData.timeframe || DEFAULT_FORM_VALUES.timeframe,
-          riskAmount: formData.riskAmount || undefined,
-          entryPrice: formData.entryPrice || undefined,
-          stopLoss: formData.stopLoss || undefined,
-          takeProfit: formData.takeProfit || undefined,
-          strategy: formData.strategy || "",
-          note: formData.note || "",
-          entryTime: formData.entryTime || new Date().toISOString(),
-          exitTime: formData.exitTime || "",
-          rr: formData.rr || 0,
-          positionSize: formData.positionSize || 0,
-          quantity: formData.quantity || 0,
-          exitPrice: formData.exitPrice || undefined,
-          pnl: formData.pnl || undefined,
-          realizedRR: formData.realizedRR || undefined,
-        });
+        form.reset(formData);
 
         // Force a re-render to ensure the form values are updated
         setTimeout(() => {
           form.trigger();
         }, 0);
+      } else if (open && !isEditMode) {
+        // When opening in add mode, make sure form is reset to defaults
+        const defaultValues = getDefaultFormValues();
+        form.reset(defaultValues);
+
+        // Also reset the store's form data to ensure clean state
+        useTradeStore.getState().resetForm();
       }
     },
     [showForm, toggleForm, form, isEditMode, formData]
