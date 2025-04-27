@@ -115,14 +115,25 @@ const EditableCell = ({ getValue, row, column }: CellContext<TradeRecord, unknow
   // Handle keyboard events
   const onKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
+      const isMultilineField = columnId === "strategy" || columnId === "note";
+
       if (e.key === "Enter") {
-        onCellBlur();
+        // For multiline fields, only save on Shift+Enter
+        if (isMultilineField) {
+          if (e.shiftKey) {
+            onCellBlur();
+          }
+          // Otherwise let the textarea handle the Enter key
+        } else {
+          // For single-line fields, save on Enter
+          onCellBlur();
+        }
       } else if (e.key === "Escape") {
         setValue(initialValue); // Reset to initial value
         setEditingCell(null);
       }
     },
-    [onCellBlur, initialValue]
+    [onCellBlur, initialValue, columnId]
   );
 
   // Common props for all input components

@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -17,8 +17,16 @@ import { DateTimePicker } from "@/components/ui/date-time-picker";
  * Optimized with react-hook-form and zod validation
  */
 export const TradeForm: React.FC = () => {
-  const { showForm, toggleForm } = useTradeStore();
+  const { showForm, toggleForm, isEditMode, formData } = useTradeStore();
   const { form, onSubmit, handleDialogChange, calculatedValues } = useTradeForm();
+
+  // Log form values when they change
+  useEffect(() => {
+    if (isEditMode) {
+      console.log("Form data in edit mode:", formData);
+      console.log("Current form values:", form.getValues());
+    }
+  }, [isEditMode, formData, form]);
 
   const renderTrigger = () => (
     <DialogTrigger asChild>
@@ -31,7 +39,7 @@ export const TradeForm: React.FC = () => {
       {renderTrigger()}
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add New Trade</DialogTitle>
+          <DialogTitle>{isEditMode ? "Edit Trade" : "Add New Trade"}</DialogTitle>
         </DialogHeader>
 
         {form.formState.errors.root?.message && (
@@ -120,7 +128,7 @@ export const TradeForm: React.FC = () => {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Side *</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl className="w-full">
                           <SelectTrigger>
                             <SelectValue placeholder="Select side" />
@@ -144,7 +152,7 @@ export const TradeForm: React.FC = () => {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Timeframe</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl className="w-full">
                           <SelectTrigger>
                             <SelectValue placeholder="Select timeframe" />
@@ -172,7 +180,16 @@ export const TradeForm: React.FC = () => {
                   <FormItem>
                     <FormLabel>Entry Price *</FormLabel>
                     <FormControl>
-                      <Input type="number" placeholder="0.00" min={0} step="0.01" {...field} />
+                      <Input
+                        type="number"
+                        placeholder="0.00"
+                        min={0}
+                        step="0.01"
+                        value={field.value || ""}
+                        onChange={field.onChange}
+                        onBlur={field.onBlur}
+                        name={field.name}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -185,7 +202,16 @@ export const TradeForm: React.FC = () => {
                   <FormItem>
                     <FormLabel>Risk Amount ($)</FormLabel>
                     <FormControl>
-                      <Input type="number" placeholder="0.0" min={0} step="0.1" {...field} />
+                      <Input
+                        type="number"
+                        placeholder="0.0"
+                        min={0}
+                        step="0.1"
+                        value={field.value || ""}
+                        onChange={field.onChange}
+                        onBlur={field.onBlur}
+                        name={field.name}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -200,7 +226,16 @@ export const TradeForm: React.FC = () => {
                   <FormItem>
                     <FormLabel>Stop Loss *</FormLabel>
                     <FormControl>
-                      <Input type="number" placeholder="0.00" min={0} step="0.01" {...field} />
+                      <Input
+                        type="number"
+                        placeholder="0.00"
+                        min={0}
+                        step="0.01"
+                        value={field.value || ""}
+                        onChange={field.onChange}
+                        onBlur={field.onBlur}
+                        name={field.name}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -213,7 +248,16 @@ export const TradeForm: React.FC = () => {
                   <FormItem>
                     <FormLabel>Take Profit *</FormLabel>
                     <FormControl>
-                      <Input type="number" placeholder="0.00" min={0} step="0.01" {...field} />
+                      <Input
+                        type="number"
+                        placeholder="0.00"
+                        min={0}
+                        step="0.01"
+                        value={field.value || ""}
+                        onChange={field.onChange}
+                        onBlur={field.onBlur}
+                        name={field.name}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -304,7 +348,7 @@ export const TradeForm: React.FC = () => {
                 Cancel
               </Button>
               <Button type="submit" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? "Submitting..." : "Add Trade"}
+                {form.formState.isSubmitting ? "Submitting..." : isEditMode ? "Update Trade" : "Add Trade"}
               </Button>
             </DialogFooter>
           </form>

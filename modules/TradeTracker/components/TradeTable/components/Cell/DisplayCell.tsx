@@ -1,18 +1,12 @@
-import { memo, useMemo, useState } from "react";
+import { memo, useMemo } from "react";
 import { DisplayCellProps } from "../../types";
 import { formatCurrency, formatDate } from "@/modules/TradeTracker/utils";
-import DetailModal from "./DetailModal";
-import { Button } from "@/components/ui/button";
-import { EyeIcon } from "lucide-react";
-import { TradeRecord } from "../../types";
 
 /**
  * Optimized DisplayCell component for rendering cell values
  * Uses memoization to prevent unnecessary re-renders
  */
-const DisplayCell = ({ value, columnId, isEditable, onEdit, row }: DisplayCellProps) => {
-  const [showDetailModal, setShowDetailModal] = useState(false);
-
+const DisplayCell = ({ value, columnId, isEditable, onEdit }: DisplayCellProps) => {
   // Format cell value based on column type
   const formattedValue = useMemo((): React.ReactNode => {
     if (value === null || value === undefined) return "-";
@@ -65,41 +59,15 @@ const DisplayCell = ({ value, columnId, isEditable, onEdit, row }: DisplayCellPr
         return formatDate(value, true);
       case "strategy":
       case "note":
-        if (!value) return "-";
-
-        // For strategy and note fields, show a preview with view more option
-        const maxLength = 30;
-        const displayText =
-          typeof value === "string" && value.length > maxLength ? `${value.substring(0, maxLength)}...` : value;
-
         return (
-          <div
-            className="flex items-center w-full gap-1"
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowDetailModal(true);
-            }}
-          >
-            <span className="truncate max-w-[150px]">{displayText}</span>
-            {typeof value === "string" && value.length > 0 && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="w-5 h-5 ml-1 opacity-70 hover:opacity-100"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowDetailModal(true);
-                }}
-              >
-                <EyeIcon className="w-3 h-3" />
-              </Button>
-            )}
+          <div className="w-full whitespace-normal overflow-hidden break-words line-clamp-3 max-h-[4.5em]">
+            {typeof value === "string" ? value : String(value)}
           </div>
         );
       default:
         return value;
     }
-  }, [value, columnId, setShowDetailModal]);
+  }, [value, columnId]);
 
   // Determine if this cell should trigger edit on hover
   const shouldEditOnHover = columnId === "side";
@@ -114,25 +82,19 @@ const DisplayCell = ({ value, columnId, isEditable, onEdit, row }: DisplayCellPr
         onMouseOver={shouldEditOnHover && isEditable ? onEdit : undefined}
         title={isEditable ? "Click to edit" : ""}
       >
-        <span className="flex items-center">
+        <div
+          className={`flex items-center ${
+            columnId === "strategy" || columnId === "note" ? "w-full min-w-[100px]" : "w-[100px]"
+          }`}
+        >
           {formattedValue}
           {isEditable && columnId !== "strategy" && columnId !== "note" && (
             <span className="ml-1 text-xs text-gray-400 transition-opacity duration-150 opacity-0 group-hover:opacity-100">
               ✎
             </span>
           )}
-        </span>
+        </div>
       </div>
-
-      {/* Detail modal for strategy and note fields */}
-      {(columnId === "strategy" || columnId === "note") && row && (
-        <DetailModal
-          isOpen={showDetailModal}
-          onClose={() => setShowDetailModal(false)}
-          trade={row as TradeRecord}
-          fieldType={columnId as "strategy" | "note"}
-        />
-      )}
     </>
   );
 };

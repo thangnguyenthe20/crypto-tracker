@@ -15,6 +15,8 @@ interface TradeState {
   isSubmitting: boolean;
   formError: string | null;
   showForm: boolean;
+  isEditMode: boolean;
+  editingTradeId: string | null;
   validationErrors: Record<string, string>;
 
   // Actions - Trade data
@@ -30,6 +32,7 @@ interface TradeState {
   updateFormField: (field: string, value: any) => void;
   resetForm: () => void;
   toggleForm: () => void;
+  openEditForm: (trade: TradeRecord) => void;
   submitForm: () => Promise<void>;
   setValidationErrors: (errors: Record<string, string>) => void;
 
@@ -56,6 +59,8 @@ export const useTradeStore = create<TradeState>((set, get) => ({
   isSubmitting: false,
   formError: null,
   showForm: false,
+  isEditMode: false,
+  editingTradeId: null,
   validationErrors: {},
 
   // Trade data actions
@@ -391,11 +396,41 @@ export const useTradeStore = create<TradeState>((set, get) => ({
       formData: { ...DEFAULT_FORM_VALUES },
       formError: null,
       validationErrors: {},
+      isEditMode: false,
+      editingTradeId: null,
     });
   },
 
   toggleForm: () => {
     set((state) => ({ showForm: !state.showForm }));
+  },
+
+  openEditForm: (trade) => {
+    // Make sure all numeric values are properly converted to numbers
+    const formattedTrade = {
+      ...trade,
+      entryPrice: Number(trade.entryPrice),
+      stopLoss: Number(trade.stopLoss),
+      takeProfit: Number(trade.takeProfit),
+      riskAmount: Number(trade.riskAmount),
+      quantity: Number(trade.quantity),
+      rr: Number(trade.rr),
+      positionSize: Number(trade.positionSize),
+      exitPrice: trade.exitPrice ? Number(trade.exitPrice) : undefined,
+      pnl: trade.pnl ? Number(trade.pnl) : undefined,
+      realizedRR: trade.realizedRR ? Number(trade.realizedRR) : undefined,
+    };
+
+    console.log("Opening edit form with trade data:", formattedTrade);
+
+    set({
+      formData: formattedTrade,
+      showForm: true,
+      isEditMode: true,
+      editingTradeId: trade._id || null,
+      formError: null,
+      validationErrors: {},
+    });
   },
 
   setValidationErrors: (errors) => {
@@ -406,15 +441,15 @@ export const useTradeStore = create<TradeState>((set, get) => ({
     set({ isSubmitting: true, formError: null });
 
     try {
-      const { formData } = get();
+      const { formData, isEditMode, editingTradeId } = get();
 
       // Validate required fields
       if (!formData.symbol || !formData.entryPrice || !formData.stopLoss || !formData.takeProfit) {
         throw new Error("Please fill in all required fields");
       }
 
-      // Create trade record with proper type conversion
-      const newTrade = createTradeRecord({
+      // Convert form data to proper types
+      const tradeData = {
         ...formData,
         entryPrice: Number(formData.entryPrice),
         stopLoss: Number(formData.stopLoss),
@@ -424,10 +459,21 @@ export const useTradeStore = create<TradeState>((set, get) => ({
         quantity: formData.quantity ? Number(formData.quantity) : undefined,
         rr: formData.rr ? Number(formData.rr) : undefined,
         positionSize: formData.positionSize ? Number(formData.positionSize) : undefined,
-      });
+      };
 
-      // Add trade
-      await get().addTrade(newTrade);
+      if (isEditMode && editingTradeId) {
+        // Update existing trade
+        const updatedTrade = {
+          ...tradeData,
+          _id: editingTradeId,
+        } as TradeRecord;
+
+        await get().updateTrade(updatedTrade);
+      } else {
+        // Add new trade
+        const newTrade = createTradeRecord(tradeData);
+        await get().addTrade(newTrade);
+      }
 
       // Reset form on success and close the form
       set({
@@ -435,6 +481,8 @@ export const useTradeStore = create<TradeState>((set, get) => ({
         formError: null,
         validationErrors: {},
         showForm: false, // Close the form after successful submission
+        isEditMode: false,
+        editingTradeId: null,
       });
     } catch (error) {
       console.error("Form submission error:", error);

@@ -103,11 +103,14 @@ const TradeTable: React.FC = () => {
     const dataColumns = columnDefinitions.map((col) =>
       columnHelper.accessor(col.accessorKey, {
         header: ({ column }) => <HeaderComponent column={column} header={col.header} size={col.size} />,
-        cell: (props) => (
-          <div style={{ width: col.size }} className="overflow-hidden">
-            <EditableCell {...props} />
-          </div>
-        ),
+        cell: (props) => {
+          const isTextColumn = col.accessorKey === "strategy" || col.accessorKey === "note";
+          return (
+            <div style={{ width: col.size }} className={`${isTextColumn ? "whitespace-normal" : "overflow-hidden"}`}>
+              <EditableCell {...props} />
+            </div>
+          );
+        },
       })
     );
 
@@ -116,7 +119,7 @@ const TradeTable: React.FC = () => {
       id: "actions",
       header: () => <div style={{ width: 50 }}>Actions</div>,
       cell: (props) => (
-        <div className="flex justify-center">
+        <div className="flex justify-center" data-cell-type="action">
           <DeleteButton trade={props.row.original} />
         </div>
       ),

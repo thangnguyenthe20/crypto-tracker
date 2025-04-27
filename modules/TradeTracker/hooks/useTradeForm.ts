@@ -10,27 +10,30 @@ import { DEFAULT_FORM_VALUES } from "../constants";
  * Enhanced Trade form hook using react-hook-form and zod validation
  */
 export const useTradeForm = () => {
-  const { submitForm, toggleForm, showForm } = useTradeStore();
+  const { submitForm, toggleForm, showForm, formData, isEditMode } = useTradeStore();
 
   // Initialize form with react-hook-form and zod validation
   const form = useForm<TradeFormValues>({
     resolver: zodResolver(tradeFormSchema),
     defaultValues: {
-      symbol: "",
-      side: DEFAULT_FORM_VALUES.side as "buy" | "sell",
-      timeframe: DEFAULT_FORM_VALUES.timeframe,
-      riskAmount: undefined,
-      entryPrice: undefined,
-      stopLoss: undefined,
-      takeProfit: undefined,
-      strategy: "",
-      note: "",
-      entryTime: new Date().toISOString(), // Default to current date/time
-      exitTime: "",
-      // Default values for calculated fields
-      rr: 0,
-      positionSize: 0,
-      quantity: 0,
+      symbol: formData.symbol || "",
+      side: (formData.side as "buy" | "sell") || (DEFAULT_FORM_VALUES.side as "buy" | "sell"),
+      timeframe: formData.timeframe || DEFAULT_FORM_VALUES.timeframe,
+      riskAmount: formData.riskAmount || undefined,
+      entryPrice: formData.entryPrice || undefined,
+      stopLoss: formData.stopLoss || undefined,
+      takeProfit: formData.takeProfit || undefined,
+      strategy: formData.strategy || "",
+      note: formData.note || "",
+      entryTime: formData.entryTime || new Date().toISOString(),
+      exitTime: formData.exitTime || "",
+      // Values for calculated fields
+      rr: formData.rr || 0,
+      positionSize: formData.positionSize || 0,
+      quantity: formData.quantity || 0,
+      exitPrice: formData.exitPrice || undefined,
+      pnl: formData.pnl || undefined,
+      realizedRR: formData.realizedRR || undefined,
     },
     mode: "onChange",
   });
@@ -44,6 +47,35 @@ export const useTradeForm = () => {
   const riskAmount = watch("riskAmount");
   const side = watch("side");
   // const leverage = watch("leverage");
+
+  // Update form values when formData changes (for edit mode)
+  useEffect(() => {
+    if (isEditMode && Object.keys(formData).length > 0) {
+      // Update form values with formData
+      form.reset(
+        {
+          symbol: formData.symbol || "",
+          side: (formData.side as "buy" | "sell") || (DEFAULT_FORM_VALUES.side as "buy" | "sell"),
+          timeframe: formData.timeframe || DEFAULT_FORM_VALUES.timeframe,
+          riskAmount: formData.riskAmount || undefined,
+          entryPrice: formData.entryPrice || undefined,
+          stopLoss: formData.stopLoss || undefined,
+          takeProfit: formData.takeProfit || undefined,
+          strategy: formData.strategy || "",
+          note: formData.note || "",
+          entryTime: formData.entryTime || new Date().toISOString(),
+          exitTime: formData.exitTime || "",
+          rr: formData.rr || 0,
+          positionSize: formData.positionSize || 0,
+          quantity: formData.quantity || 0,
+          exitPrice: formData.exitPrice || undefined,
+          pnl: formData.pnl || undefined,
+          realizedRR: formData.realizedRR || undefined,
+        },
+        { keepDefaultValues: true }
+      );
+    }
+  }, [formData, isEditMode, form]);
 
   // Calculate derived values
   useEffect(() => {
@@ -165,9 +197,35 @@ export const useTradeForm = () => {
         form.reset();
         // Also reset the store's form data
         useTradeStore.getState().resetForm();
+      } else if (open && isEditMode) {
+        // When opening in edit mode, reset the form with the current formData
+        form.reset({
+          symbol: formData.symbol || "",
+          side: (formData.side as "buy" | "sell") || (DEFAULT_FORM_VALUES.side as "buy" | "sell"),
+          timeframe: formData.timeframe || DEFAULT_FORM_VALUES.timeframe,
+          riskAmount: formData.riskAmount || undefined,
+          entryPrice: formData.entryPrice || undefined,
+          stopLoss: formData.stopLoss || undefined,
+          takeProfit: formData.takeProfit || undefined,
+          strategy: formData.strategy || "",
+          note: formData.note || "",
+          entryTime: formData.entryTime || new Date().toISOString(),
+          exitTime: formData.exitTime || "",
+          rr: formData.rr || 0,
+          positionSize: formData.positionSize || 0,
+          quantity: formData.quantity || 0,
+          exitPrice: formData.exitPrice || undefined,
+          pnl: formData.pnl || undefined,
+          realizedRR: formData.realizedRR || undefined,
+        });
+
+        // Force a re-render to ensure the form values are updated
+        setTimeout(() => {
+          form.trigger();
+        }, 0);
       }
     },
-    [showForm, toggleForm, form]
+    [showForm, toggleForm, form, isEditMode, formData]
   );
 
   return {

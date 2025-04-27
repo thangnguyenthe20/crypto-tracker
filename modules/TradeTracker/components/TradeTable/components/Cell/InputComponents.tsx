@@ -86,13 +86,34 @@ export const DateTimeInput: React.FC<CellInputProps> = ({ value, onChange, onBlu
   );
 };
 
-export const TextInput: React.FC<CellInputProps> = ({ value, onChange, onBlur, onKeyDown }) => (
-  <Input
-    className="w-full h-auto p-1 focus-visible:ring-0"
-    value={value as string}
-    onChange={(e) => onChange(e.target.value)}
-    onBlur={onBlur}
-    onKeyDown={onKeyDown}
-    autoFocus
-  />
-);
+export const TextInput: React.FC<CellInputProps> = ({ value, onChange, onBlur, onKeyDown, columnId }) => {
+  const isMultiline = columnId === "strategy" || columnId === "note";
+
+  return isMultiline ? (
+    <textarea
+      className="w-full min-h-[60px] p-1 text-sm border rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+      value={value as string}
+      onChange={(e) => onChange(e.target.value)}
+      onBlur={onBlur}
+      onKeyDown={(e) => {
+        // Allow Enter key for new lines in multiline fields
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.stopPropagation(); // Prevent form submission
+        } else {
+          onKeyDown?.(e);
+        }
+      }}
+      rows={3}
+      autoFocus
+    />
+  ) : (
+    <Input
+      className="w-full h-auto p-1 focus-visible:ring-0"
+      value={value as string}
+      onChange={(e) => onChange(e.target.value)}
+      onBlur={onBlur}
+      onKeyDown={onKeyDown}
+      autoFocus
+    />
+  );
+};
