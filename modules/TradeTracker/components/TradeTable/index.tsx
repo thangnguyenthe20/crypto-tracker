@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import {
   createColumnHelper,
   getCoreRowModel,
@@ -21,6 +21,8 @@ import { Button } from "@/components/ui/button";
 import { ArrowDownIcon, ArrowUpIcon } from "lucide-react";
 import { useTrades } from "../../hooks";
 import { TradeForm } from "../TradeForm";
+import { DeleteButton } from "./components/DeleteButton";
+import { TableLoadingMask } from "./components/TableLoadingMask";
 
 // Column definition type with size property
 type ColumnDefinition = {
@@ -30,12 +32,19 @@ type ColumnDefinition = {
 };
 
 const TradeTable: React.FC = () => {
-  const { trades } = useTrades();
+  const { trades, isLoading, refreshTrades } = useTrades();
   const [sorting, setSorting] = useState<SortingState>([]);
   const [pagination, setPagination] = useState({
     pageIndex: 0,
     pageSize: 10,
   });
+
+  // Fetch trades on component mount if not already loaded
+  useEffect(() => {
+    if (trades.length === 0 && !isLoading) {
+      refreshTrades();
+    }
+  }, [refreshTrades, trades.length, isLoading]);
 
   // Define column configurations
   const columnDefinitions = useMemo<ColumnDefinition[]>(
@@ -98,7 +107,8 @@ const TradeTable: React.FC = () => {
   const columns = useMemo(() => {
     const columnHelper = createColumnHelper<TradeRecord>();
 
-    return columnDefinitions.map((col) =>
+    // Create columns from column definitions
+    const dataColumns = columnDefinitions.map((col) =>
       columnHelper.accessor(col.accessorKey, {
         header: ({ column }) => <HeaderComponent column={column} header={col.header} size={col.size} />,
         cell: (props) => (
@@ -108,6 +118,20 @@ const TradeTable: React.FC = () => {
         ),
       })
     );
+
+    // Add action column with delete button
+    const actionColumn = columnHelper.display({
+      id: "actions",
+      header: () => <div style={{ width: 50 }}>Actions</div>,
+      cell: (props) => (
+        <div className="flex justify-center">
+          <DeleteButton trade={props.row.original} />
+        </div>
+      ),
+    });
+
+    // Return all columns with action column at the end
+    return [...dataColumns, actionColumn];
   }, [columnDefinitions, HeaderComponent]);
 
   // Create table instance
@@ -125,8 +149,28 @@ const TradeTable: React.FC = () => {
     getPaginationRowModel: getPaginationRowModel(),
   });
 
+  // Initial loading state (no trades yet)
+  if (isLoading && trades.length === 0) {
+    return (
+      <div className="p-6 mb-8 bg-white rounded-lg shadow-md">
+        <h2 className="mb-4 text-xl font-semibold">Trade History</h2>
+        <div className="flex items-center justify-center py-12">
+          <div className="flex flex-col items-center gap-2">
+            <div
+              className="w-10 h-10 border-4 border-solid rounded-full animate-spin border-primary border-r-transparent"
+              role="status"
+            >
+              <span className="sr-only">Loading...</span>
+            </div>
+            <span className="mt-2 text-sm font-medium text-gray-700">Loading trades...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Empty state component
-  if (trades.length === 0) {
+  if (!isLoading && trades.length === 0) {
     return (
       <div className="p-6 mb-8 bg-white rounded-lg shadow-md">
         <h2 className="mb-4 text-xl font-semibold">Trade History</h2>
@@ -137,11 +181,19 @@ const TradeTable: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between">
-        <h2 className="text-xl font-semibold">Trade History</h2>
-        <TradeForm />
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <h2 className="text-xl font-semibold">Trade History</h2>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => refreshTrades()} disabled={isLoading}>
+            Refresh
+          </Button>
+          <TradeForm />
+        </div>
       </div>
-      <div className="border rounded-md">
+      <div className="relative border rounded-md">
+        <TableLoadingMask isLoading={isLoading} />
         <Table>
           <TableHeader table={table} />
           <TableBody table={table} />

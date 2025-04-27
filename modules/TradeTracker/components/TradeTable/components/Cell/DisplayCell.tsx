@@ -34,7 +34,9 @@ const DisplayCell = ({ value, columnId, isEditable, onEdit }: DisplayCellProps) 
       case "exitPrice":
       case "quantity":
         // Format numbers with appropriate decimal places
-        return value < 0.01
+        return value === 0
+          ? 0.0
+          : value < 0.01
           ? value.toFixed(6)
           : value < 1
           ? value.toFixed(4)
